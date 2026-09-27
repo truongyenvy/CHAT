@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Chat Mã Hóa 3 Lớp (RSA + AES + SHA256)</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: #2a2a2a; padding: 20px; border-radius: 8px; }
+        #chat-box { height: 300px; border: 1px solid #444; overflow-y: auto; padding: 10px; margin-bottom: 10px; background: #111; }
+        .msg { margin: 8px 0; padding: 8px; border-radius: 5px; }
+        .me { background: #0d6efd; text-align: right; }
+        .them { background: #333; text-align: left; }
+        input, select, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #198754; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Web Chat Mã Hóa (RSA + AES + SHA256)</h2>
+    
+    <!-- Màn hình Đăng nhập -->
+    <div id="login-section">
+        <input type="text" id="username" placeholder="Nhập tên tài khoản của bạn...">
+        <button onclick="login()">Vào Chat</button>
+    </div>
+
+    <!-- Màn hình Chat -->
+    <div id="chat-section" style="display:none;">
+        <p>Xin chào: <b id="user-display"></b></p>
+        <label>Chọn người nhận:</label>
+        <select id="receiver-select"></select>
+        
+        <div id="chat-box"></div>
+
+        <input type="text" id="message-input" placeholder="Nhập tin nhắn bảo mật...">
+        <button onclick="sendEncryptedMessage()">Mã Hóa & Gửi Tin Nhắn</button>
+    </div>
+</div>
+
+<script>
+const socket = io();
+let myUsername = "";
+let rsaKeyPair = null;
+
+// Helper: Convert ArrayBuffer <-> Base64
+function bufferToBase64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function base64ToBuffer(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer; }
+
+// 1. Tạo cặp khóa RSA 2048-bit
+async function generateRSAKeys() {
+    return await window.crypto.subtle.generateKey(
+        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+        true, ["encrypt", "decrypt"]
+    );
+}
+
+// 2. Xuất Public Key dạng Pem/Text
+async function exportPublicKey(key) {
+    const exported = await window.crypto.subtle.exportKey("spki", key);
+    return bufferToBase64(exported);
+}
+
+// 3. Nhập Public Key từ Text
+async function importPublicKey(b64) {
+    return await window.crypto.subtle.importKey(
+        "spki", base64ToBuffer(b64),
+        { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]
+    );
+}
+
+// 4. Tạo mã băm SHA-256 cho tin nhắn
+async function computeSHA256(text) {
+    const encoder = new TextEncoder();
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoder.encode(text));
+    return bufferToBase64(hashBuffer);
+}
+
+// Đăng nhập
+async function login() {
+    myUsername = document.getElementById('username').value.trim();
+    if (!myUsername) return alert("Vui lòng nhập tên!");
+
+    // Tạo cặp khóa RSA khi vào app
+    rsaKeyPair = await generateRSAKeys();
+    const pubKeyStr = await exportPublicKey(rsaKeyPair.publicKey);
+
+    socket.emit('register_user', { username: myUsername, publicKey: pubKeyStr });
+
+    document.getElementById('login-section').style.display = 'none';
+    document.getElementById('chat-section').style.display = 'block';
+    document.getElementById('user-display').innerText = myUsername;
+}
+
+// Cập nhật danh sách User
+socket.on('update_user_list', (userList) => {
+    const select = document.getElementById('receiver-select');
+    select.innerHTML = '';
+    userList.forEach(u => {
+        if (u !== myUsername) {
+            const opt = document.createElement('option');
+            opt.value = u;
+            opt.innerText = u;
+            select.appendChild(opt);
+        }
+    });
+});
+
+// QUY TRÌNH MÃ HÓA & GỬI TIN NHẮN
+async function sendEncryptedMessage() {
+    const text = document.getElementById('message-input').value.trim();
+    const receiver = document.getElementById('receiver-select').value;
+    if (!text || !receiver) return;
+
+    // Lấy Public Key của người nhận từ Server
+    socket.emit('get_public_key', receiver, async (res) => {
+        if (!res.success) return alert(res.message);
+
+        // BƯỚC 1: SHA-256 - Băm tin nhắn gốc
+        const hashHex = await computeSHA256(text);
+        const payload = JSON.stringify({ msg: text, hash: hashHex });
+
+        // BƯỚC 2: AES-256-GCM - Mã hóa Payload (Tin nhắn + Hash SHA256)
+        const aesKey = await window.crypto.subtle.generateKey(
+            { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
+        );
+        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const encoder = new TextEncoder();
+        
+        const encryptedContent = await window.crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv }, aesKey, encoder.encode(payload)
+        );
+
+        // BƯỚC 3: RSA-OAEP - Mã hóa khóa AES bằng Public Key của người nhận
+        const exportedAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
+        const receiverPubKey = await importPublicKey(res.publicKey);
+        
+        const encryptedAesKey = await window.crypto.subtle.encrypt(
+            { name: "RSA-OAEP" }, receiverPubKey, exportedAesKey
+        );
+
+        // Gửi gói tin
+        socket.emit('send_secure_message', {
+            senderUsername: myUsername,
+            receiverUsername: receiver,
+            encryptedContent: bufferToBase64(encryptedContent),
+            encryptedAesKey: bufferToBase64(encryptedAesKey),
+            iv: bufferToBase64(iv)
+        });
+
+        // Hiển thị tin nhắn bên người gửi
+        appendMessage(myUsername, text, true);
+        document.getElementById('message-input').value = '';
+    });
+}
+
+// QUY TRÌNH GIẢI MÃ & XÁC THỰC TIN NHẮN NHẬN ĐƯỢC
+socket.on('receive_secure_message', async (data) => {
+    try {
+        // BƯỚC 1: Giải mã Khóa AES bằng Private Key RSA của mình
+        const rawAesKey = await window.crypto.subtle.decrypt(
+            { name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToBuffer(data.encryptedAesKey)
+        );
+
+        const aesKey = await window.crypto.subtle.importKey(
+            "raw", rawAesKey, { name: "AES-GCM" }, false, ["decrypt"]
+        );
+
+        // BƯỚC 2: Giải mã Nội dung bằng Khóa AES
+        const decryptedBuffer = await window.crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: new Uint8Array(base64ToBuffer(data.iv)) },
+            aesKey, base64ToBuffer(data.encryptedContent)
+        );
+
+        const decodedText = new TextDecoder().decode(decryptedBuffer);
+        const payload = JSON.parse(decodedText);
+
+        // BƯỚC 3: Kiểm tra tính toàn vẹn bằng SHA-256
+        const recomputedHash = await computeSHA256(payload.msg);
+        if (recomputedHash !== payload.hash) {
+            appendMessage(data.senderUsername, "[CẢNH BÁO: Tin nhắn đã bị thay đổi trên đường truyền!]", false);
+        } else {
+            appendMessage(data.senderUsername, payload.msg, false);
+        }
+    } catch (err) {
+        console.error(err);
+        appendMessage(data.senderUsername, "[Không thể giải mã tin nhắn này]", false);
+    }
+});
+
+function appendMessage(sender, text, isMe) {
+    const box = document.getElementById('chat-box');
+    const div = document.createElement('div');
+    div.className = `msg ${isMe ? 'me' : 'them'}`;
+    div.innerHTML = `<small style="opacity:0.7">${sender}</small><br><b>${text}</b>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>
