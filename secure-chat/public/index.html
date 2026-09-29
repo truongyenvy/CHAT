@@ -17,7 +17,6 @@
             padding: 20px;
         }
 
-        /* Container kính mờ (Glassmorphism) */
         .card {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(16px);
@@ -64,7 +63,6 @@
         }
         button:hover { opacity: 0.95; transform: translateY(-1px); }
 
-        /* Khung Chat */
         #chat-box {
             height: 280px;
             border: 1px solid #334155;
@@ -92,7 +90,6 @@
             word-break: break-all;
         }
 
-        /* Badge Bảo mật */
         .security-badge {
             margin-top: 20px;
             text-align: center;
@@ -130,8 +127,8 @@
         </div>
 
         <div class="input-group">
-            <label>Gửi đến:</label>
-            <select id="receiver-select"></select>
+            <label>Gửi đến (Chọn người nhắn):</label>
+            <select id="receiver-select" onchange="switchChatUser()"></select>
         </div>
 
         <div id="chat-box"></div>
@@ -151,6 +148,9 @@
 const socket = io();
 let myUsername = "";
 let rsaKeyPair = null;
+
+// Bộ lưu trữ lịch sử chat riêng biệt cho từng người dùng { 'yến vy': [...], 'cút': [...] }
+const chatHistory = {};
 
 function bufferToBase64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
 function base64ToBuffer(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer; }
@@ -196,16 +196,41 @@ async function login() {
 
 socket.on('update_user_list', (userList) => {
     const select = document.getElementById('receiver-select');
+    const currentSelected = select.value;
     select.innerHTML = '';
+
     userList.forEach(u => {
         if (u !== myUsername) {
             const opt = document.createElement('option');
             opt.value = u;
             opt.innerText = u;
+            if (u === currentSelected) opt.selected = true;
             select.appendChild(opt);
+
+            // Khởi tạo bộ nhớ tin nhắn riêng nếu chưa có
+            if (!chatHistory[u]) {
+                chatHistory[u] = [];
+            }
         }
     });
+
+    // Cập nhật lại khung hiển thị cho người hiện tại
+    switchChatUser();
 });
+
+// Chuyển đổi cuộc trò chuyện khi chọn người dùng khác nhau trên Dropdown
+function switchChatUser() {
+    const activeUser = document.getElementById('receiver-select').value;
+    const box = document.getElementById('chat-box');
+    box.innerHTML = ''; // Xóa tin nhắn hiện tại trên khung hiển thị
+
+    if (activeUser && chatHistory[activeUser]) {
+        // Nạp lại danh sách tin nhắn tương ứng của người đó
+        chatHistory[activeUser].forEach(msg => {
+            renderMessageToUI(msg.sender, msg.text, msg.isMe, msg.cipherPreview);
+        });
+    }
+}
 
 async function sendEncryptedMessage() {
     const text = document.getElementById('message-input').value.trim();
@@ -245,7 +270,16 @@ async function sendEncryptedMessage() {
             iv: bufferToBase64(iv)
         });
 
-        appendMessage(myUsername, text, true, cipherTextB64);
+        // 1. Lưu tin nhắn vào bộ nhớ riêng của người nhận này
+        if (!chatHistory[receiver]) chatHistory[receiver] = [];
+        chatHistory[receiver].push({ sender: myUsername, text: text, isMe: true, cipherPreview: cipherTextB64 });
+
+        // 2. Render lên UI nếu đang chọn đúng người này
+        const activeUser = document.getElementById('receiver-select').value;
+        if (activeUser === receiver) {
+            renderMessageToUI(myUsername, text, true, cipherTextB64);
+        }
+
         document.getElementById('message-input').value = '';
     });
 }
@@ -269,17 +303,29 @@ socket.on('receive_secure_message', async (data) => {
         const payload = JSON.parse(decodedText);
 
         const recomputedHash = await computeSHA256(payload.msg);
+        let displayText = payload.msg;
         if (recomputedHash !== payload.hash) {
-            appendMessage(data.senderUsername, "[CẢNH BÁO: Tin nhắn bị sửa đổi!]", false);
-        } else {
-            appendMessage(data.senderUsername, payload.msg, false, data.encryptedContent);
+            displayText = "[CẢNH BÁO: Tin nhắn bị sửa đổi!]";
         }
+
+        const sender = data.senderUsername;
+
+        // 1. Lưu tin nhắn vào bộ nhớ riêng của người gửi
+        if (!chatHistory[sender]) chatHistory[sender] = [];
+        chatHistory[sender].push({ sender: sender, text: displayText, isMe: false, cipherPreview: data.encryptedContent });
+
+        // 2. Chỉ vẽ lên khung chat nếu bạn ĐANG CHỌN người gửi đó trên menu dropdown
+        const activeUser = document.getElementById('receiver-select').value;
+        if (activeUser === sender) {
+            renderMessageToUI(sender, displayText, false, data.encryptedContent);
+        }
+
     } catch (err) {
-        appendMessage(data.senderUsername, "[Lỗi giải mã]", false);
+        console.error("Lỗi giải mã:", err);
     }
 });
 
-function appendMessage(sender, text, isMe, cipherPreview = "") {
+function renderMessageToUI(sender, text, isMe, cipherPreview = "") {
     const box = document.getElementById('chat-box');
     const div = document.createElement('div');
     div.className = `msg ${isMe ? 'me' : 'them'}`;
