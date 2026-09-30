@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Chat Mã Hóa 3 Lớp + Chữ Ký Số (E2EE)</title>
+    <title>Web Chat Mã Hóa 3 Lớp (RSA + AES + SHA256)</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -17,6 +17,7 @@
             padding: 20px;
         }
 
+        /* Container kính mờ (Glassmorphism) */
         .card {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(16px);
@@ -24,34 +25,21 @@
             border-radius: 20px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
             width: 100%;
-            max-width: 580px;
-            padding: 28px;
+            max-width: 520px;
+            padding: 32px;
         }
 
-        .header { text-align: center; margin-bottom: 20px; }
-        .logo-icon { font-size: 38px; margin-bottom: 6px; display: inline-block; }
-        .title { font-size: 22px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .logo-icon { font-size: 42px; margin-bottom: 8px; display: inline-block; }
+        .title { font-size: 22px; font-weight: 700; color: #38bdf8; margin-bottom: 6px; }
         .subtitle { font-size: 13px; color: #94a3b8; }
 
-        /* Security Dashboard */
-        .dashboard {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 16px;
-            font-size: 12px;
-        }
-        .dash-title { font-weight: bold; color: #38bdf8; margin-bottom: 6px; display: flex; justify-content: space-between; }
-        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; color: #cbd5e1; }
-        .dash-item { background: rgba(255,255,255,0.05); padding: 6px 8px; border-radius: 6px; }
-
-        .input-group { margin-bottom: 14px; position: relative; }
+        .input-group { margin-bottom: 16px; position: relative; }
         .input-group label { display: block; font-size: 13px; color: #cbd5e1; margin-bottom: 6px; text-align: left; }
         
         input, select {
             width: 100%;
-            padding: 10px 14px;
+            padding: 12px 16px;
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid #334155;
             border-radius: 10px;
@@ -62,24 +50,36 @@
         }
         input:focus, select:focus { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
 
-        .btn-group { display: flex; gap: 10px; margin-top: 6px; }
         button {
-            flex: 1;
-            padding: 11px;
+            width: 100%;
+            padding: 12px;
             background: linear-gradient(135deg, #0284c7, #2563eb);
             color: white;
             border: none;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
             cursor: pointer;
             transition: transform 0.2s, opacity 0.2s;
         }
         button:hover { opacity: 0.95; transform: translateY(-1px); }
-        .btn-test { background: linear-gradient(135deg, #e11d48, #be123c); }
 
+        .auth-toggle {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .auth-toggle span {
+            color: #38bdf8;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        /* Khung Chat */
         #chat-box {
-            height: 250px;
+            height: 280px;
             border: 1px solid #334155;
             border-radius: 12px;
             overflow-y: auto;
@@ -91,30 +91,28 @@
             gap: 10px;
         }
 
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.4; }
         .me { background: #0284c7; align-self: flex-end; border-bottom-right-radius: 2px; }
         .them { background: #334155; align-self: flex-start; border-bottom-left-radius: 2px; }
 
         .encrypted-preview {
-            font-size: 10px;
+            font-size: 11px;
             color: #94a3b8;
             margin-top: 6px;
             background: rgba(0,0,0,0.3);
-            padding: 4px 6px;
+            padding: 4px 8px;
             border-radius: 6px;
             word-break: break-all;
         }
 
-        .sign-badge { color: #34d399; font-weight: bold; font-size: 10px; }
-        .warn-badge { color: #f87171; font-weight: bold; font-size: 10px; }
-
+        /* Badge Bảo mật */
         .security-badge {
-            margin-top: 16px;
+            margin-top: 20px;
             text-align: center;
-            font-size: 11px;
+            font-size: 12px;
             color: #10b981;
             background: rgba(16, 185, 129, 0.1);
-            padding: 6px;
+            padding: 8px;
             border-radius: 8px;
             border: 1px solid rgba(16, 185, 129, 0.2);
         }
@@ -124,74 +122,63 @@
 
 <div class="card">
     <div class="header">
-        <div class="logo-icon">🛡️</div>
-        <div class="title">E2EE Secure Web Chat</div>
-        <div class="subtitle">Bảo mật mã hóa 3 lớp + Chữ ký số RSA Signature</div>
+        <div class="logo-icon">🔒</div>
+        <div class="title">Secure Web Chat</div>
+        <div class="subtitle">Bảo mật mã hóa End-to-End (RSA + AES + SHA)</div>
     </div>
 
-    <!-- 1. Đăng ký / Đăng nhập -->
-    <div id="login-section">
+    <!-- Màn hình Đăng nhập / Đăng ký -->
+    <div id="auth-section">
         <div class="input-group">
             <label>Tên tài khoản</label>
-            <input type="text" id="username" placeholder="Nhập biệt danh của bạn...">
+            <input type="text" id="auth-username" placeholder="Nhập tên tài khoản...">
         </div>
-        <button onclick="login()">1. Đăng Nhập System</button>
+        <div class="input-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="auth-password" placeholder="Nhập mật khẩu...">
+        </div>
+
+        <button id="auth-btn" onclick="handleAuth()">Đăng Nhập</button>
+
+        <div class="auth-toggle" id="auth-toggle-text">
+            Chưa có tài khoản? <span onclick="toggleAuthMode()">Đăng ký ngay</span>
+        </div>
     </div>
 
-    <!-- Màn hình Chat & Security Dashboard -->
+    <!-- Màn hình Chat -->
     <div id="chat-section" style="display:none;">
-        
-        <!-- 7. Security Dashboard -->
-        <div class="dashboard">
-            <div class="dash-title">
-                <span>📊 SECURITY DASHBOARD</span>
-                <span style="color:#10b981;">● ACTIVE</span>
-            </div>
-            <div class="dash-grid">
-                <div class="dash-item">🔑 Key Exchange: <b>RSA-OAEP 2048</b></div>
-                <div class="dash-item">🔒 Data Encrypt: <b>AES-256-GCM</b></div>
-                <div class="dash-item">🔏 Digital Sign: <b>RSA-PSS 2048</b></div>
-                <div class="dash-item">💾 Storage: <b>Database Ciphertext</b></div>
-            </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-align: center; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <span style="font-size: 13px; color: #94a3b8;">Xin chào: <b id="user-display" style="color:#38bdf8"></b></span>
         </div>
 
-        <!-- 2. Chat riêng -->
         <div class="input-group">
-            <label>2. Chọn người nhận (Chat riêng):</label>
+            <label>Gửi đến:</label>
             <select id="receiver-select" onchange="switchChatUser()"></select>
         </div>
 
         <div id="chat-box"></div>
 
         <div class="input-group">
-            <input type="text" id="message-input" placeholder="Nhập tin nhắn bảo mật..." onkeypress="if(event.key==='Enter') sendEncryptedMessage(false)">
+            <input type="text" id="message-input" placeholder="Nhập tin nhắn bảo mật..." onkeypress="if(event.key==='Enter') sendEncryptedMessage()">
         </div>
-        
-        <div class="btn-group">
-            <!-- 3,4,5,8. Gửi mã hóa + Chữ ký số -->
-            <button onclick="sendEncryptedMessage(false)">Mã Hóa & Gửi</button>
-            <!-- 7. Security Test -->
-            <button class="btn-test" onclick="sendEncryptedMessage(true)" title="Giả lập bị sửa đổi dữ liệu trên đường truyền">7. Security Test (Tamper)</button>
-        </div>
+        <button onclick="sendEncryptedMessage()">Mã Hóa & Gửi Tin Nhắn</button>
     </div>
 
     <div class="security-badge">
-        🛡️ E2EE Protocol | RSA-2048 | AES-256-GCM | SHA-256 | Digital Signature
+        🛡️ RSA-2048 | AES-256-GCM | SHA-256 | Digital Signature Active
     </div>
 </div>
 
 <script>
 const socket = io();
 let myUsername = "";
-let rsaKeyPair = null;       // Mã hóa / Giải mã
-let signKeyPair = null;      // 8. Chữ ký số
+let rsaKeyPair = null;
+let signKeyPair = null;
+let isLoginMode = true; // Flg chuyển đổi Đăng nhập / Đăng ký
+
 const chatHistory = {};
 
-// --- DB IndexedDB (6. Lưu Ciphertext vào Database) ---
+// CSDL IndexedDB lưu Ciphertext
 let db;
 const request = indexedDB.open("SecureChatDB", 1);
 request.onupgradeneeded = (e) => {
@@ -202,23 +189,20 @@ request.onupgradeneeded = (e) => {
 };
 request.onsuccess = (e) => { db = e.target.result; };
 
-function saveToDatabase(data) {
+function saveToDatabase(packet) {
     if (!db) return;
     const tx = db.transaction("messages", "readwrite");
-    tx.objectStore("messages").add(data);
+    tx.objectStore("messages").add(packet);
 }
 
-// --- Các hàm mã hóa bổ trợ ---
 function bufferToBase64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
 function base64ToBuffer(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer; }
 
-// Khởi tạo cặp khóa Mã hóa & Chữ ký số
 async function generateKeys() {
     rsaKeyPair = await window.crypto.subtle.generateKey(
         { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
         true, ["encrypt", "decrypt"]
     );
-    // 8. Tạo cặp khóa Chữ ký số RSA-PSS
     signKeyPair = await window.crypto.subtle.generateKey(
         { name: "RSA-PSS", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
         true, ["sign", "verify"]
@@ -226,8 +210,8 @@ async function generateKeys() {
 }
 
 async function exportPubKey(key) {
-    const exp = await window.crypto.subtle.exportKey("spki", key);
-    return bufferToBase64(exp);
+    const exported = await window.crypto.subtle.exportKey("spki", key);
+    return bufferToBase64(exported);
 }
 
 async function importPubKey(b64, type) {
@@ -240,29 +224,60 @@ async function importPubKey(b64, type) {
 
 async function computeSHA256(text) {
     const encoder = new TextEncoder();
-    const hashBuf = await window.crypto.subtle.digest('SHA-256', encoder.encode(text));
-    return bufferToBase64(hashBuf);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoder.encode(text));
+    return bufferToBase64(hashBuffer);
 }
 
-// 1. Đăng ký / Đăng nhập
-async function login() {
-    myUsername = document.getElementById('username').value.trim();
-    if (!myUsername) return alert("Vui lòng nhập tên!");
+// Chuyển đổi giao diện Đăng ký / Đăng nhập
+function toggleAuthMode() {
+    isLoginMode = !isLoginMode;
+    const btn = document.getElementById('auth-btn');
+    const toggleText = document.getElementById('auth-toggle-text');
+
+    if (isLoginMode) {
+        btn.innerText = "Đăng Nhập";
+        toggleText.innerHTML = 'Chưa có tài khoản? <span onclick="toggleAuthMode()">Đăng ký ngay</span>';
+    } else {
+        btn.innerText = "Tạo Tài Khoản Mới";
+        toggleText.innerHTML = 'Đã có tài khoản? <span onclick="toggleAuthMode()">Đăng nhập</span>';
+    }
+}
+
+// Xử lý nút Đăng nhập / Đăng ký
+async function handleAuth() {
+    const username = document.getElementById('auth-username').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+
+    if (!username || !password) return alert("Vui lòng điền đầy đủ tài khoản và mật khẩu!");
 
     await generateKeys();
     const encPubKeyB64 = await exportPubKey(rsaKeyPair.publicKey);
     const signPubKeyB64 = await exportPubKey(signKeyPair.publicKey);
 
-    // Gửi khóa Công khai mã hóa & Khóa công khai chữ ký số
-    socket.emit('register_user', { 
-        username: myUsername, 
+    const payload = {
+        username,
+        password,
         publicKey: encPubKeyB64,
         signPublicKey: signPubKeyB64
-    });
+    };
 
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('chat-section').style.display = 'block';
-    document.getElementById('user-display').innerText = myUsername;
+    if (isLoginMode) {
+        socket.emit('login_account', payload, (res) => {
+            if (res.success) {
+                myUsername = username;
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('chat-section').style.display = 'block';
+                document.getElementById('user-display').innerText = myUsername;
+            } else {
+                alert(res.message);
+            }
+        });
+    } else {
+        socket.emit('register_account', payload, (res) => {
+            alert(res.message);
+            if (res.success) toggleAuthMode();
+        });
+    }
 }
 
 socket.on('update_user_list', (userList) => {
@@ -284,7 +299,6 @@ socket.on('update_user_list', (userList) => {
     switchChatUser();
 });
 
-// 2. Chuyển đổi khung chat riêng
 function switchChatUser() {
     const activeUser = document.getElementById('receiver-select').value;
     const box = document.getElementById('chat-box');
@@ -292,13 +306,12 @@ function switchChatUser() {
 
     if (activeUser && chatHistory[activeUser]) {
         chatHistory[activeUser].forEach(msg => {
-            renderMessageToUI(msg.sender, msg.text, msg.isMe, msg.cipherPreview, msg.isVerified);
+            renderMessageToUI(msg.sender, msg.text, msg.isMe, msg.cipherPreview);
         });
     }
 }
 
-// 3, 4, 5, 7, 8. Luồng mã hóa, ký số & gửi tin nhắn
-async function sendEncryptedMessage(isTestTamper = false) {
+async function sendEncryptedMessage() {
     const text = document.getElementById('message-input').value.trim();
     const receiver = document.getElementById('receiver-select').value;
     if (!text || !receiver) return;
@@ -306,17 +319,9 @@ async function sendEncryptedMessage(isTestTamper = false) {
     socket.emit('get_public_key', receiver, async (res) => {
         if (!res.success) return alert(res.message);
 
-        // 5. SHA-256
-        let hashHex = await computeSHA256(text);
-        
-        // 7. Security Test: Cố tình làm sai lệch Hash để test cảnh báo toàn vẹn
-        if (isTestTamper) {
-            hashHex = hashHex.substring(0, hashHex.length - 4) + "FAIL";
-        }
-
+        const hashHex = await computeSHA256(text);
         const payload = JSON.stringify({ msg: text, hash: hashHex });
 
-        // 8. Tạo Chữ ký số (Digital Signature) trên Payload
         const encoder = new TextEncoder();
         const signatureBuf = await window.crypto.subtle.sign(
             { name: "RSA-PSS", saltLength: 32 },
@@ -325,7 +330,6 @@ async function sendEncryptedMessage(isTestTamper = false) {
         );
         const signatureB64 = bufferToBase64(signatureBuf);
 
-        // 3. Khóa AES-256-GCM
         const aesKey = await window.crypto.subtle.generateKey(
             { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
         );
@@ -335,7 +339,6 @@ async function sendEncryptedMessage(isTestTamper = false) {
             { name: "AES-GCM", iv: iv }, aesKey, encoder.encode(payload)
         );
 
-        // 4. RSA-2048 bọc khóa AES
         const exportedAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
         const receiverPubKey = await importPubKey(res.publicKey, 'encrypt');
         
@@ -352,34 +355,30 @@ async function sendEncryptedMessage(isTestTamper = false) {
             encryptedContent: cipherTextB64,
             encryptedAesKey: bufferToBase64(encryptedAesKey),
             iv: bufferToBase64(iv),
-            signature: signatureB64,            // 8. Chữ ký
-            senderSignPubKey: senderSignPubKeyB64 // 8. Khóa xác thực chữ ký
+            signature: signatureB64,
+            senderSignPubKey: senderSignPubKeyB64
         };
 
         socket.emit('send_secure_message', packet);
 
-        // 6. Lưu Ciphertext vào Database
         saveToDatabase(packet);
 
         if (!chatHistory[receiver]) chatHistory[receiver] = [];
-        chatHistory[receiver].push({ sender: myUsername, text: text, isMe: true, cipherPreview: cipherTextB64, isVerified: true });
+        chatHistory[receiver].push({ sender: myUsername, text: text, isMe: true, cipherPreview: cipherTextB64 });
 
         const activeUser = document.getElementById('receiver-select').value;
         if (activeUser === receiver) {
-            renderMessageToUI(myUsername, text, true, cipherTextB64, true);
+            renderMessageToUI(myUsername, text, true, cipherTextB64);
         }
 
         document.getElementById('message-input').value = '';
     });
 }
 
-// Giải mã & Kiểm tra Chữ ký số / Toàn vẹn
 socket.on('receive_secure_message', async (data) => {
     try {
-        // 6. Lưu Ciphertext nhận được vào Database
         saveToDatabase(data);
 
-        // 4. Giải mã khóa AES bằng Private Key RSA
         const rawAesKey = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToBuffer(data.encryptedAesKey)
         );
@@ -388,7 +387,6 @@ socket.on('receive_secure_message', async (data) => {
             "raw", rawAesKey, { name: "AES-GCM" }, false, ["decrypt"]
         );
 
-        // 3. Giải mã tin nhắn bằng AES-GCM
         const decryptedBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(base64ToBuffer(data.iv)) },
             aesKey, base64ToBuffer(data.encryptedContent)
@@ -397,7 +395,6 @@ socket.on('receive_secure_message', async (data) => {
         const decodedText = new TextDecoder().decode(decryptedBuffer);
         const payload = JSON.parse(decodedText);
 
-        // 8. Kiểm tra Chữ ký số (Digital Signature Verification)
         let isSignatureValid = false;
         if (data.signature && data.senderSignPubKey) {
             const senderSignKey = await importPubKey(data.senderSignPubKey, 'verify');
@@ -410,23 +407,20 @@ socket.on('receive_secure_message', async (data) => {
             );
         }
 
-        // 5. SHA-256 Kiểm tra tính toàn vẹn (Integrity Check)
         const recomputedHash = await computeSHA256(payload.msg);
         let displayText = payload.msg;
-        let isVerified = true;
 
         if (recomputedHash !== payload.hash || !isSignatureValid) {
-            displayText = "[CẢNH BÁO: Dữ liệu bị sửa đổi hoặc chữ ký không hợp lệ!]";
-            isVerified = false;
+            displayText = "[CẢNH BÁO: Tin nhắn bị can thiệp hoặc chữ ký không hợp lệ!]";
         }
 
         const sender = data.senderUsername;
         if (!chatHistory[sender]) chatHistory[sender] = [];
-        chatHistory[sender].push({ sender: sender, text: displayText, isMe: false, cipherPreview: data.encryptedContent, isVerified: isVerified });
+        chatHistory[sender].push({ sender: sender, text: displayText, isMe: false, cipherPreview: data.encryptedContent });
 
         const activeUser = document.getElementById('receiver-select').value;
         if (activeUser === sender) {
-            renderMessageToUI(sender, displayText, false, data.encryptedContent, isVerified);
+            renderMessageToUI(sender, displayText, false, data.encryptedContent);
         }
 
     } catch (err) {
@@ -434,18 +428,14 @@ socket.on('receive_secure_message', async (data) => {
     }
 });
 
-function renderMessageToUI(sender, text, isMe, cipherPreview = "", isVerified = true) {
+function renderMessageToUI(sender, text, isMe, cipherPreview = "") {
     const box = document.getElementById('chat-box');
     const div = document.createElement('div');
     div.className = `msg ${isMe ? 'me' : 'them'}`;
     
-    const badgeHtml = isVerified 
-        ? `<span class="sign-badge">✓ Chữ ký hợp lệ</span>` 
-        : `<span class="warn-badge">⚠️ Bị can thiệp!</span>`;
-
-    let html = `<div style="display:flex; justify-content:space-between;"><small style="opacity:0.75; font-size:11px;">${sender}</small> ${badgeHtml}</div><b>${text}</b>`;
+    let html = `<small style="opacity:0.75; font-size:11px;">${sender}</small><br><b>${text}</b>`;
     if (cipherPreview) {
-        html += `<div class="encrypted-preview">🔒 Ciphertext: ${cipherPreview.substring(0, 26)}...</div>`;
+        html += `<div class="encrypted-preview">🔒 Payload: ${cipherPreview.substring(0, 30)}...</div>`;
     }
     
     div.innerHTML = html;
