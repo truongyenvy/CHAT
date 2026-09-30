@@ -17,7 +17,6 @@
             padding: 20px;
         }
 
-        /* Container kính mờ (Glassmorphism) */
         .card {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(16px);
@@ -77,7 +76,6 @@
             text-decoration: underline;
         }
 
-        /* Khung Chat */
         #chat-box {
             height: 280px;
             border: 1px solid #334155;
@@ -105,7 +103,6 @@
             word-break: break-all;
         }
 
-        /* Badge Bảo mật */
         .security-badge {
             margin-top: 20px;
             text-align: center;
@@ -127,7 +124,7 @@
         <div class="subtitle">Bảo mật mã hóa End-to-End (RSA + AES + SHA)</div>
     </div>
 
-    <!-- Màn hình Đăng nhập / Đăng ký -->
+    <!-- Auth Section -->
     <div id="auth-section">
         <div class="input-group">
             <label>Tên tài khoản</label>
@@ -145,7 +142,7 @@
         </div>
     </div>
 
-    <!-- Màn hình Chat -->
+    <!-- Chat Section -->
     <div id="chat-section" style="display:none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <span style="font-size: 13px; color: #94a3b8;">Xin chào: <b id="user-display" style="color:#38bdf8"></b></span>
@@ -174,11 +171,10 @@ const socket = io();
 let myUsername = "";
 let rsaKeyPair = null;
 let signKeyPair = null;
-let isLoginMode = true; // Flg chuyển đổi Đăng nhập / Đăng ký
+let isLoginMode = true;
 
 const chatHistory = {};
 
-// CSDL IndexedDB lưu Ciphertext
 let db;
 const request = indexedDB.open("SecureChatDB", 1);
 request.onupgradeneeded = (e) => {
@@ -228,7 +224,6 @@ async function computeSHA256(text) {
     return bufferToBase64(hashBuffer);
 }
 
-// Chuyển đổi giao diện Đăng ký / Đăng nhập
 function toggleAuthMode() {
     isLoginMode = !isLoginMode;
     const btn = document.getElementById('auth-btn');
@@ -243,23 +238,17 @@ function toggleAuthMode() {
     }
 }
 
-// Xử lý nút Đăng nhập / Đăng ký
 async function handleAuth() {
     const username = document.getElementById('auth-username').value.trim();
     const password = document.getElementById('auth-password').value.trim();
 
-    if (!username || !password) return alert("Vui lòng điền đầy đủ tài khoản và mật khẩu!");
+    if (!username || !password) return alert("Vui lòng điền đầy đủ thông tin!");
 
     await generateKeys();
     const encPubKeyB64 = await exportPubKey(rsaKeyPair.publicKey);
     const signPubKeyB64 = await exportPubKey(signKeyPair.publicKey);
 
-    const payload = {
-        username,
-        password,
-        publicKey: encPubKeyB64,
-        signPublicKey: signPubKeyB64
-    };
+    const payload = { username, password, publicKey: encPubKeyB64, signPublicKey: signPubKeyB64 };
 
     if (isLoginMode) {
         socket.emit('login_account', payload, (res) => {
@@ -268,6 +257,9 @@ async function handleAuth() {
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('chat-section').style.display = 'block';
                 document.getElementById('user-display').innerText = myUsername;
+                
+                // Yêu cầu lấy danh sách online ngay lập tức
+                socket.emit('request_user_list');
             } else {
                 alert(res.message);
             }
@@ -280,6 +272,7 @@ async function handleAuth() {
     }
 }
 
+// Lắng nghe cập nhật danh sách từ Server
 socket.on('update_user_list', (userList) => {
     const select = document.getElementById('receiver-select');
     const currentSelected = select.value;
@@ -360,7 +353,6 @@ async function sendEncryptedMessage() {
         };
 
         socket.emit('send_secure_message', packet);
-
         saveToDatabase(packet);
 
         if (!chatHistory[receiver]) chatHistory[receiver] = [];
