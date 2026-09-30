@@ -17,6 +17,7 @@
             padding: 20px;
         }
 
+        /* Container kính mờ (Glassmorphism) */
         .card {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(16px);
@@ -63,6 +64,7 @@
         }
         button:hover { opacity: 0.95; transform: translateY(-1px); }
 
+        /* Khung Chat */
         #chat-box {
             height: 280px;
             border: 1px solid #334155;
@@ -90,6 +92,7 @@
             word-break: break-all;
         }
 
+        /* Badge Bảo mật */
         .security-badge {
             margin-top: 20px;
             text-align: center;
@@ -111,7 +114,7 @@
         <div class="subtitle">Bảo mật mã hóa End-to-End (RSA + AES + SHA)</div>
     </div>
 
-    <!-- màn hình đăng nhập -->
+    <!-- 1. Màn hình đăng nhập -->
     <div id="login-section">
         <div class="input-group">
             <label>Tên tài khoản</label>
@@ -120,14 +123,14 @@
         <button onclick="login()">Vào Phòng Chat</button>
     </div>
 
-    <!-- màn hình chat -->
+    <!-- 2. Màn hình chat -->
     <div id="chat-section" style="display:none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <span style="font-size: 13px; color: #94a3b8;">Xin chào: <b id="user-display" style="color:#38bdf8"></b></span>
         </div>
 
         <div class="input-group">
-            <label>Gửi đến (Chọn người nhắn):</label>
+            <label>Gửi đến:</label>
             <select id="receiver-select" onchange="switchChatUser()"></select>
         </div>
 
@@ -140,54 +143,86 @@
     </div>
 
     <div class="security-badge">
-        🛡️ RSA-2048 | AES-256-GCM | SHA-256 Active
+        🛡️ RSA-2048 | AES-256-GCM | SHA-256 | Digital Signature Active
     </div>
 </div>
 
 <script>
 const socket = io();
 let myUsername = "";
-let rsaKeyPair = null;
+let rsaKeyPair = null;  // Khóa Mã hóa/Giải mã RSA
+let signKeyPair = null; // 8. Khóa Chữ ký số (Digital Signature)
 
-// Bộ lưu trữ lịch sử chat riêng biệt cho từng người dùng { 'yến vy': [...], 'cút': [...] }
+// 2. Bộ lưu trữ lịch sử chat riêng biệt cho từng người dùng
 const chatHistory = {};
+
+// 6. CSDL Database ngầm (IndexedDB) lưu Ciphertext
+let db;
+const request = indexedDB.open("SecureChatDB", 1);
+request.onupgradeneeded = (e) => {
+    db = e.target.result;
+    if (!db.objectStoreNames.contains("messages")) {
+        db.createObjectStore("messages", { keyPath: "id", autoIncrement: true });
+    }
+};
+request.onsuccess = (e) => { db = e.target.result; };
+
+function saveToDatabase(packet) {
+    if (!db) return;
+    const tx = db.transaction("messages", "readwrite");
+    tx.objectStore("messages").add(packet);
+}
 
 function bufferToBase64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
 function base64ToBuffer(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer; }
 
-async function generateRSAKeys() {
-    return await window.crypto.subtle.generateKey(
+// Khởi tạo cặp khóa Mã hóa & Khóa Chữ ký số
+async function generateKeys() {
+    rsaKeyPair = await window.crypto.subtle.generateKey(
         { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
         true, ["encrypt", "decrypt"]
     );
+    // 8. Tạo cặp khóa Chữ ký số RSA-PSS
+    signKeyPair = await window.crypto.subtle.generateKey(
+        { name: "RSA-PSS", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+        true, ["sign", "verify"]
+    );
 }
 
-async function exportPublicKey(key) {
+async function exportPubKey(key) {
     const exported = await window.crypto.subtle.exportKey("spki", key);
     return bufferToBase64(exported);
 }
 
-async function importPublicKey(b64) {
-    return await window.crypto.subtle.importKey(
-        "spki", base64ToBuffer(b64),
-        { name: "RSA-OAEP", hash: "SHA-256" }, true, ["encrypt"]
-    );
+async function importPubKey(b64, type) {
+    const algo = type === 'encrypt' 
+        ? { name: "RSA-OAEP", hash: "SHA-256" }
+        : { name: "RSA-PSS", hash: "SHA-256" };
+    const usage = type === 'encrypt' ? ["encrypt"] : ["verify"];
+    return await window.crypto.subtle.importKey("spki", base64ToBuffer(b64), algo, true, usage);
 }
 
+// 5. SHA-256 băm dữ liệu
 async function computeSHA256(text) {
     const encoder = new TextEncoder();
     const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoder.encode(text));
     return bufferToBase64(hashBuffer);
 }
 
+// 1. Đăng ký / Đăng nhập
 async function login() {
     myUsername = document.getElementById('username').value.trim();
     if (!myUsername) return alert("Vui lòng nhập tên!");
 
-    rsaKeyPair = await generateRSAKeys();
-    const pubKeyStr = await exportPublicKey(rsaKeyPair.publicKey);
+    await generateKeys();
+    const encPubKeyB64 = await exportPubKey(rsaKeyPair.publicKey);
+    const signPubKeyB64 = await exportPubKey(signKeyPair.publicKey);
 
-    socket.emit('register_user', { username: myUsername, publicKey: pubKeyStr });
+    socket.emit('register_user', { 
+        username: myUsername, 
+        publicKey: encPubKeyB64,
+        signPublicKey: signPubKeyB64
+    });
 
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('chat-section').style.display = 'block';
@@ -207,31 +242,26 @@ socket.on('update_user_list', (userList) => {
             if (u === currentSelected) opt.selected = true;
             select.appendChild(opt);
 
-            // Khởi tạo bộ nhớ tin nhắn riêng nếu chưa có
-            if (!chatHistory[u]) {
-                chatHistory[u] = [];
-            }
+            if (!chatHistory[u]) chatHistory[u] = [];
         }
     });
-
-    // Cập nhật lại khung hiển thị cho người hiện tại
     switchChatUser();
 });
 
-// Chuyển đổi cuộc trò chuyện khi chọn người dùng khác nhau trên Dropdown
+// 2. Chuyển đổi tin nhắn riêng biệt cho từng người
 function switchChatUser() {
     const activeUser = document.getElementById('receiver-select').value;
     const box = document.getElementById('chat-box');
-    box.innerHTML = ''; // Xóa tin nhắn hiện tại trên khung hiển thị
+    box.innerHTML = '';
 
     if (activeUser && chatHistory[activeUser]) {
-        // Nạp lại danh sách tin nhắn tương ứng của người đó
         chatHistory[activeUser].forEach(msg => {
             renderMessageToUI(msg.sender, msg.text, msg.isMe, msg.cipherPreview);
         });
     }
 }
 
+// 3, 4, 5, 8. Luồng mã hóa tin nhắn + Chữ ký số
 async function sendEncryptedMessage() {
     const text = document.getElementById('message-input').value.trim();
     const receiver = document.getElementById('receiver-select').value;
@@ -240,41 +270,58 @@ async function sendEncryptedMessage() {
     socket.emit('get_public_key', receiver, async (res) => {
         if (!res.success) return alert(res.message);
 
+        // 5. Tạo mã băm SHA-256
         const hashHex = await computeSHA256(text);
         const payload = JSON.stringify({ msg: text, hash: hashHex });
 
+        // 8. Ký Chữ ký số RSA-PSS lên gói tin
+        const encoder = new TextEncoder();
+        const signatureBuf = await window.crypto.subtle.sign(
+            { name: "RSA-PSS", saltLength: 32 },
+            signKeyPair.privateKey,
+            encoder.encode(payload)
+        );
+        const signatureB64 = bufferToBase64(signatureBuf);
+
+        // 3. Mã hóa AES-256-GCM
         const aesKey = await window.crypto.subtle.generateKey(
             { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]
         );
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
-        const encoder = new TextEncoder();
         
         const encryptedContent = await window.crypto.subtle.encrypt(
             { name: "AES-GCM", iv: iv }, aesKey, encoder.encode(payload)
         );
 
+        // 4. Mã hóa RSA-2048 cho khóa AES
         const exportedAesKey = await window.crypto.subtle.exportKey("raw", aesKey);
-        const receiverPubKey = await importPublicKey(res.publicKey);
+        const receiverPubKey = await importPubKey(res.publicKey, 'encrypt');
         
         const encryptedAesKey = await window.crypto.subtle.encrypt(
             { name: "RSA-OAEP" }, receiverPubKey, exportedAesKey
         );
 
         const cipherTextB64 = bufferToBase64(encryptedContent);
+        const senderSignPubKeyB64 = await exportPubKey(signKeyPair.publicKey);
 
-        socket.emit('send_secure_message', {
+        const packet = {
             senderUsername: myUsername,
             receiverUsername: receiver,
             encryptedContent: cipherTextB64,
             encryptedAesKey: bufferToBase64(encryptedAesKey),
-            iv: bufferToBase64(iv)
-        });
+            iv: bufferToBase64(iv),
+            signature: signatureB64,            // Chữ ký số
+            senderSignPubKey: senderSignPubKeyB64 // Khóa công khai xác thực chữ ký
+        };
 
-        // 1. Lưu tin nhắn vào bộ nhớ riêng của người nhận này
+        socket.emit('send_secure_message', packet);
+
+        // 6. Lưu Ciphertext vào Database
+        saveToDatabase(packet);
+
         if (!chatHistory[receiver]) chatHistory[receiver] = [];
         chatHistory[receiver].push({ sender: myUsername, text: text, isMe: true, cipherPreview: cipherTextB64 });
 
-        // 2. Render lên UI nếu đang chọn đúng người này
         const activeUser = document.getElementById('receiver-select').value;
         if (activeUser === receiver) {
             renderMessageToUI(myUsername, text, true, cipherTextB64);
@@ -284,8 +331,13 @@ async function sendEncryptedMessage() {
     });
 }
 
+// 解密 & 7. Kiểm tra tính toàn vẹn + Chữ ký số
 socket.on('receive_secure_message', async (data) => {
     try {
+        // 6. Lưu Ciphertext vào Database
+        saveToDatabase(data);
+
+        // 4. Giải mã khóa AES bằng Private Key RSA
         const rawAesKey = await window.crypto.subtle.decrypt(
             { name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToBuffer(data.encryptedAesKey)
         );
@@ -294,6 +346,7 @@ socket.on('receive_secure_message', async (data) => {
             "raw", rawAesKey, { name: "AES-GCM" }, false, ["decrypt"]
         );
 
+        // 3. Giải mã tin nhắn AES-256-GCM
         const decryptedBuffer = await window.crypto.subtle.decrypt(
             { name: "AES-GCM", iv: new Uint8Array(base64ToBuffer(data.iv)) },
             aesKey, base64ToBuffer(data.encryptedContent)
@@ -302,19 +355,31 @@ socket.on('receive_secure_message', async (data) => {
         const decodedText = new TextDecoder().decode(decryptedBuffer);
         const payload = JSON.parse(decodedText);
 
+        // 8. Kiểm tra Chữ ký số
+        let isSignatureValid = false;
+        if (data.signature && data.senderSignPubKey) {
+            const senderSignKey = await importPubKey(data.senderSignPubKey, 'verify');
+            const encoder = new TextEncoder();
+            isSignatureValid = await window.crypto.subtle.verify(
+                { name: "RSA-PSS", saltLength: 32 },
+                senderSignKey,
+                base64ToBuffer(data.signature),
+                encoder.encode(decodedText)
+            );
+        }
+
+        // 5 & 7. Kiểm tra tính toàn vẹn SHA-256
         const recomputedHash = await computeSHA256(payload.msg);
         let displayText = payload.msg;
-        if (recomputedHash !== payload.hash) {
-            displayText = "[CẢNH BÁO: Tin nhắn bị sửa đổi!]";
+
+        if (recomputedHash !== payload.hash || !isSignatureValid) {
+            displayText = "[CẢNH BÁO: Tin nhắn bị can thiệp hoặc chữ ký không hợp lệ!]";
         }
 
         const sender = data.senderUsername;
-
-        // 1. Lưu tin nhắn vào bộ nhớ riêng của người gửi
         if (!chatHistory[sender]) chatHistory[sender] = [];
         chatHistory[sender].push({ sender: sender, text: displayText, isMe: false, cipherPreview: data.encryptedContent });
 
-        // 2. Chỉ vẽ lên khung chat nếu bạn ĐANG CHỌN người gửi đó trên menu dropdown
         const activeUser = document.getElementById('receiver-select').value;
         if (activeUser === sender) {
             renderMessageToUI(sender, displayText, false, data.encryptedContent);
