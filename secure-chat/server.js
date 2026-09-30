@@ -9,9 +9,8 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// Cơ sở dữ liệu tạm thời lưu người dùng & khóa công khai
-const registeredUsers = {}; // Cấu trúc: { username: { passwordHash, publicKey, signPublicKey } }
-const onlineUsers = {};     // Cấu trúc: { username: socketId }
+const registeredUsers = {}; // { username: { passwordHash, publicKey, signPublicKey } }
+const onlineUsers = {};     // { username: socketId }
 
 function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
@@ -45,21 +44,26 @@ io.on('connection', (socket) => {
             return callback({ success: false, message: 'Tài khoản hoặc mật khẩu không đúng!' });
         }
 
-        // Cập nhật lại Public Key phiên làm việc mới
+        // Cập nhật thông tin phiên mới
         user.publicKey = publicKey;
         user.signPublicKey = signPublicKey;
 
-        // Lưu trạng thái online
+        // Lưu Socket ID
         onlineUsers[username] = socket.id;
         socket.username = username;
 
         callback({ success: true, message: 'Đăng nhập thành công!' });
 
-        // Cập nhật danh sách online cho tất cả mọi người
+        // Phát danh sách mới cho TẤT CẢ client đang kết nối ngay lập tức
         io.emit('update_user_list', Object.keys(onlineUsers));
     });
 
-    // Lấy Public Key của người nhận
+    // Client chủ động xin danh sách online
+    socket.on('request_user_list', () => {
+        socket.emit('update_user_list', Object.keys(onlineUsers));
+    });
+
+    // Lấy Public Key người nhận
     socket.on('get_public_key', (targetUser, callback) => {
         const user = registeredUsers[targetUser];
         if (user && onlineUsers[targetUser]) {
