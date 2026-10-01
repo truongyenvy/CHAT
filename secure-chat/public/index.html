@@ -1,627 +1,700 @@
 <!DOCTYPE html>
-
 <html lang="vi">
 
 <head>
+
     <meta charset="UTF-8">
 
-```
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-<title>Web Chat Mã Hóa 3 Lớp</title>
+    <title>Secure Web Chat</title>
 
-<script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
 
-<style>
+    <style>
 
-    * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-    }
+        * {
+            box-sizing: border-box;
+        }
 
-    body {
-        font-family: Arial, sans-serif;
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-    }
+        body {
+            margin: 0;
+            padding: 0;
 
-    .container {
-        width: 100%;
-        max-width: 1000px;
-        min-height: 650px;
-        background: rgba(255,255,255,0.96);
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.25);
-    }
+            min-height: 100vh;
 
-    /* ==========================
-       AUTH
-    ========================== */
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
 
-    #authScreen {
-        max-width: 450px;
-        margin: auto;
-        padding: 50px 40px;
-    }
+            background:
+                linear-gradient(
+                    135deg,
+                    #0f172a,
+                    #1e293b,
+                    #111827
+                );
 
-    .logo {
-        text-align: center;
-        margin-bottom: 25px;
-    }
+            color: white;
 
-    .logo h1 {
-        color: #333;
-        margin-bottom: 10px;
-    }
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-    .logo p {
-        color: #777;
-        font-size: 14px;
-    }
+        .card {
 
-    .security-badge {
-        margin-top: 15px;
-        padding: 10px;
-        border-radius: 10px;
-        background: #f0f4ff;
-        color: #4b5bdc;
-        font-size: 12px;
-        text-align: center;
-    }
+            width: 95%;
+            max-width: 1100px;
 
-    .form-group {
-        margin-bottom: 18px;
-    }
+            min-height: 650px;
 
-    .form-group label {
-        display: block;
-        margin-bottom: 7px;
-        color: #444;
-        font-weight: bold;
-    }
+            background:
+                rgba(255, 255, 255, 0.08);
 
-    .form-group input {
-        width: 100%;
-        padding: 13px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        font-size: 15px;
-        outline: none;
-    }
+            border:
+                1px solid
+                rgba(255, 255, 255, 0.15);
 
-    .form-group input:focus {
-        border-color: #667eea;
-    }
+            backdrop-filter:
+                blur(20px);
 
-    .btn {
-        width: 100%;
-        padding: 13px;
-        border: none;
-        border-radius: 10px;
-        background: #667eea;
-        color: white;
-        font-size: 16px;
-        cursor: pointer;
-        font-weight: bold;
-    }
+            -webkit-backdrop-filter:
+                blur(20px);
 
-    .btn:hover {
-        background: #5568d9;
-    }
+            border-radius: 20px;
 
-    .switch-mode {
-        text-align: center;
-        margin-top: 18px;
-        color: #666;
-        font-size: 14px;
-    }
+            padding: 30px;
 
-    .switch-mode span {
-        color: #667eea;
-        cursor: pointer;
-        font-weight: bold;
-    }
+            box-shadow:
+                0 20px 60px
+                rgba(0, 0, 0, 0.4);
+        }
 
-    #authMessage {
-        margin-top: 15px;
-        text-align: center;
-        font-size: 14px;
-        min-height: 20px;
-    }
+        h1 {
 
+            text-align: center;
 
-    /* ==========================
-       CHAT
-    ========================== */
+            margin-top: 0;
+            margin-bottom: 8px;
 
-    #chatScreen {
-        display: none;
-        height: 700px;
-    }
+            font-size: 32px;
+        }
 
-    .chat-header {
-        height: 75px;
-        background: #667eea;
-        color: white;
-        padding: 15px 25px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
+        .subtitle {
 
-    .chat-header h2 {
-        font-size: 20px;
-    }
+            text-align: center;
 
-    .chat-header small {
-        opacity: 0.85;
-    }
+            color: #cbd5e1;
 
-    .logout-btn {
-        background: rgba(255,255,255,0.2);
-        border: 1px solid rgba(255,255,255,0.4);
-        color: white;
-        padding: 8px 14px;
-        border-radius: 8px;
-        cursor: pointer;
-    }
+            margin-bottom: 30px;
+        }
 
-    .chat-body {
-        display: flex;
-        height: calc(100% - 75px);
-    }
+        /* ==========================
+           AUTH
+        ========================== */
 
-    /* ==========================
-       USER LIST
-    ========================== */
+        #authScreen {
 
-    .sidebar {
-        width: 260px;
-        border-right: 1px solid #ddd;
-        background: #fafafa;
-        padding: 20px;
-    }
+            max-width: 450px;
 
-    .sidebar h3 {
-        margin-bottom: 12px;
-        color: #333;
-    }
+            margin: auto;
+        }
 
-    #receiverSelect {
-        width: 100%;
-        padding: 11px;
-        border-radius: 8px;
-        border: 1px solid #ddd;
-        outline: none;
-        margin-bottom: 20px;
-    }
+        .input-group {
 
-    .security-info {
-        background: #f0f4ff;
-        padding: 12px;
-        border-radius: 10px;
-        font-size: 12px;
-        color: #555;
-        line-height: 1.6;
-    }
+            margin-bottom: 18px;
+        }
 
-    .security-info strong {
-        color: #4b5bdc;
-    }
+        label {
 
+            display: block;
 
-    /* ==========================
-       CHAT AREA
-    ========================== */
+            margin-bottom: 7px;
 
-    .chat-area {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
+            color: #cbd5e1;
+        }
 
-    #chatTitle {
-        height: 55px;
-        padding: 18px 20px;
-        border-bottom: 1px solid #eee;
-        font-weight: bold;
-        color: #333;
-    }
+        input,
+        select {
 
-    #messages {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-        background: #f7f8fc;
-    }
+            width: 100%;
 
-    .message {
-        margin-bottom: 15px;
-        max-width: 75%;
-    }
+            padding: 13px;
 
-    .message.me {
-        margin-left: auto;
-    }
+            border-radius: 10px;
 
-    .message.other {
-        margin-right: auto;
-    }
+            border:
+                1px solid
+                rgba(255,255,255,0.2);
 
-    .message-box {
-        padding: 10px 14px;
-        border-radius: 14px;
-        display: inline-block;
-        word-break: break-word;
-    }
+            background:
+                rgba(0,0,0,0.25);
 
-    .message.me .message-box {
-        background: #667eea;
-        color: white;
-    }
+            color: white;
 
-    .message.other .message-box {
-        background: white;
-        color: #333;
-        box-shadow: 0 2px 7px rgba(0,0,0,0.08);
-    }
+            outline: none;
 
-    .message-info {
-        font-size: 11px;
-        color: #888;
-        margin-bottom: 4px;
-    }
+            font-size: 15px;
+        }
 
-    .message.me .message-info {
-        text-align: right;
-    }
+        select option {
 
-    .security-warning {
-        background: #fff3cd;
-        color: #856404;
-        padding: 10px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        font-size: 13px;
-    }
+            background: #1e293b;
 
+            color: white;
+        }
 
-    /* ==========================
-       INPUT
-    ========================== */
+        input:focus,
+        select:focus {
 
-    .input-area {
-        padding: 15px;
-        background: white;
-        border-top: 1px solid #ddd;
-        display: flex;
-        gap: 10px;
-    }
+            border-color: #60a5fa;
+        }
 
-    #messageInput {
-        flex: 1;
-        padding: 12px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        outline: none;
-        font-size: 15px;
-    }
+        button {
 
-    #sendButton {
-        padding: 0 20px;
-        border: none;
-        border-radius: 10px;
-        background: #667eea;
-        color: white;
-        cursor: pointer;
-        font-weight: bold;
-    }
+            border: none;
 
-    #sendButton:hover {
-        background: #5568d9;
-    }
+            border-radius: 10px;
 
+            padding: 13px 18px;
 
-    /* ==========================
-       RESPONSIVE
-    ========================== */
+            background: #2563eb;
 
-    @media (max-width: 700px) {
+            color: white;
+
+            cursor: pointer;
+
+            font-size: 15px;
+
+            transition: 0.2s;
+        }
+
+        button:hover {
+
+            background: #1d4ed8;
+
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+
+            opacity: 0.5;
+
+            cursor: not-allowed;
+
+            transform: none;
+        }
+
+        .auth-button {
+
+            width: 100%;
+
+            margin-top: 5px;
+        }
+
+        .switch-auth {
+
+            text-align: center;
+
+            margin-top: 20px;
+
+            color: #cbd5e1;
+        }
+
+        .switch-auth span {
+
+            color: #60a5fa;
+
+            cursor: pointer;
+
+            font-weight: bold;
+        }
+
+        .status {
+
+            margin-top: 15px;
+
+            text-align: center;
+
+            min-height: 20px;
+
+            color: #93c5fd;
+        }
+
+        /* ==========================
+           CHAT
+        ========================== */
+
+        #chatScreen {
+
+            display: none;
+        }
+
+        .chat-layout {
+
+            display: grid;
+
+            grid-template-columns:
+                230px 1fr;
+
+            gap: 20px;
+
+            min-height: 500px;
+        }
 
         .sidebar {
-            width: 200px;
+
+            background:
+                rgba(0,0,0,0.2);
+
+            border-radius: 15px;
+
+            padding: 18px;
+        }
+
+        .sidebar h3 {
+
+            margin-top: 0;
+        }
+
+        .user-status {
+
+            color: #86efac;
+
+            font-size: 13px;
+
+            margin-bottom: 15px;
+        }
+
+        .logout-button {
+
+            width: 100%;
+
+            background: #dc2626;
+
+            margin-top: 20px;
+        }
+
+        .logout-button:hover {
+
+            background: #b91c1c;
+        }
+
+        .chat-area {
+
+            display: flex;
+
+            flex-direction: column;
+
+            background:
+                rgba(0,0,0,0.15);
+
+            border-radius: 15px;
+
+            padding: 18px;
+        }
+
+        .receiver-box {
+
+            margin-bottom: 15px;
+        }
+
+        .chat-box {
+
+            flex: 1;
+
+            min-height: 350px;
+
+            max-height: 400px;
+
+            overflow-y: auto;
+
+            padding: 15px;
+
+            background:
+                rgba(0,0,0,0.2);
+
+            border-radius: 12px;
+
+            margin-bottom: 15px;
         }
 
         .message {
-            max-width: 85%;
-        }
-    }
 
-</style>
-```
+            margin-bottom: 12px;
+
+            display: flex;
+        }
+
+        .message.mine {
+
+            justify-content: flex-end;
+        }
+
+        .message-content {
+
+            max-width: 70%;
+
+            padding: 10px 14px;
+
+            border-radius: 12px;
+
+            background: #334155;
+
+            word-wrap: break-word;
+        }
+
+        .message.mine .message-content {
+
+            background: #2563eb;
+        }
+
+        .message-info {
+
+            font-size: 11px;
+
+            opacity: 0.7;
+
+            margin-bottom: 4px;
+        }
+
+        .message-text {
+
+            white-space: pre-wrap;
+
+            word-break: break-word;
+        }
+
+        .message-input-area {
+
+            display: flex;
+
+            gap: 10px;
+        }
+
+        .message-input-area input {
+
+            flex: 1;
+        }
+
+        .security-badge {
+
+            text-align: center;
+
+            margin-top: 15px;
+
+            padding: 10px;
+
+            border-radius: 10px;
+
+            background:
+                rgba(34,197,94,0.12);
+
+            border:
+                1px solid
+                rgba(34,197,94,0.25);
+
+            color: #86efac;
+
+            font-size: 12px;
+        }
+
+        .empty-message {
+
+            text-align: center;
+
+            color: #94a3b8;
+
+            margin-top: 100px;
+        }
+
+        @media (max-width: 700px) {
+
+            .card {
+
+                width: 100%;
+
+                min-height: 100vh;
+
+                border-radius: 0;
+
+                padding: 20px;
+            }
+
+            .chat-layout {
+
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+
+                min-height: auto;
+            }
+
+            .chat-box {
+
+                min-height: 350px;
+            }
+
+            .message-content {
+
+                max-width: 85%;
+            }
+        }
+
+    </style>
 
 </head>
 
 <body>
 
-<div class="container">
+<div class="card">
 
-```
-<!-- ==================================================
-     AUTH SCREEN
-================================================== -->
+    <h1>Secure Web Chat</h1>
 
-<div id="authScreen">
-
-    <div class="logo">
-
-        <h1>🔐 Secure Web Chat</h1>
-
-        <p id="authTitle">
-            Đăng nhập hệ thống
-        </p>
-
-        <div class="security-badge">
-            RSA-2048 | AES-256-GCM | SHA-256 |
-            Digital Signature
-        </div>
-
+    <div class="subtitle">
+        Bảo mật mã hóa End-to-End (RSA + AES + SHA)
     </div>
 
 
-    <div class="form-group">
+    <!-- ==========================================
+         AUTH SCREEN
+    =========================================== -->
 
-        <label>
-            Tên tài khoản
-        </label>
+    <div id="authScreen">
 
-        <input
-            type="text"
-            id="username"
-            placeholder="Nhập tên tài khoản"
-        >
+        <div class="input-group">
 
-    </div>
+            <label>Tên tài khoản</label>
 
-
-    <div class="form-group">
-
-        <label>
-            Mật khẩu
-        </label>
-
-        <input
-            type="password"
-            id="password"
-            placeholder="Nhập mật khẩu"
-        >
-
-    </div>
-
-
-    <button
-        class="btn"
-        id="authButton"
-        onclick="handleAuth()"
-    >
-        Đăng nhập
-    </button>
-
-
-    <div class="switch-mode">
-
-        <span id="switchText">
-            Chưa có tài khoản?
-        </span>
-
-        <span
-            id="switchAction"
-            onclick="toggleAuthMode()"
-        >
-            Đăng ký
-        </span>
-
-    </div>
-
-
-    <div id="authMessage"></div>
-
-</div>
-
-
-<!-- ==================================================
-     CHAT SCREEN
-================================================== -->
-
-<div id="chatScreen">
-
-    <!-- HEADER -->
-
-    <div class="chat-header">
-
-        <div>
-
-            <h2>
-                🔐 Secure Web Chat
-            </h2>
-
-            <small>
-                Bảo mật mã hóa End-to-End
-                (RSA + AES + SHA)
-            </small>
+            <input
+                type="text"
+                id="username"
+                placeholder="Nhập tên tài khoản"
+                autocomplete="username"
+            >
 
         </div>
 
 
-        <div>
+        <div class="input-group">
 
-            <span id="currentUser">
-                User
+            <label>Mật khẩu</label>
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Nhập mật khẩu"
+                autocomplete="current-password"
+            >
+
+        </div>
+
+
+        <button
+            class="auth-button"
+            id="authButton"
+            onclick="handleAuth()"
+        >
+            Đăng nhập
+        </button>
+
+
+        <div class="switch-auth">
+
+            <span id="switchText">
+                Chưa có tài khoản? Đăng ký
             </span>
 
-            <button
-                class="logout-btn"
-                onclick="logout()"
-            >
-                Đăng xuất
-            </button>
-
         </div>
+
+
+        <div
+            class="status"
+            id="authStatus"
+        ></div>
 
     </div>
 
 
-    <!-- BODY -->
+    <!-- ==========================================
+         CHAT SCREEN
+    =========================================== -->
 
-    <div class="chat-body">
+    <div id="chatScreen">
 
-        <!-- SIDEBAR -->
-
-        <div class="sidebar">
-
-            <h3>
-                Người nhận
-            </h3>
+        <div class="chat-layout">
 
 
-            <select
-                id="receiverSelect"
-                onchange="switchChatUser()"
-            >
+            <!-- SIDEBAR -->
 
-                <option value="">
-                    -- Chọn người dùng --
-                </option>
+            <div class="sidebar">
 
-            </select>
+                <h3>Tài khoản</h3>
 
-
-            <div class="security-info">
-
-                <strong>
-                    🔒 Bảo mật:
-                </strong>
-
-                <br>
-
-                AES-256-GCM:
-                Mã hóa nội dung
-
-                <br>
-
-                RSA-OAEP:
-                Mã hóa khóa AES
-
-                <br>
-
-                SHA-256:
-                Hash dữ liệu
-
-                <br>
-
-                RSA-PSS:
-                Chữ ký số
-
-            </div>
-
-        </div>
-
-
-        <!-- CHAT -->
-
-        <div class="chat-area">
-
-            <div id="chatTitle">
-                Chưa chọn người nhận
-            </div>
-
-
-            <div id="messages"></div>
-
-
-            <div class="input-area">
-
-                <input
-                    type="text"
-                    id="messageInput"
-                    placeholder="Nhập tin nhắn..."
-                    onkeydown="handleEnter(event)"
+                <div
+                    id="currentUser"
+                    style="margin-bottom: 10px;"
                 >
+                    -
+                </div>
+
+                <div class="user-status">
+                    ● Đang trực tuyến
+                </div>
+
+
+                <label>
+                    Người nhận
+                </label>
+
+                <select id="receiverSelect">
+
+                    <option value="">
+                        -- Chọn người nhận --
+                    </option>
+
+                </select>
+
 
                 <button
-                    id="sendButton"
-                    onclick="sendEncryptedMessage()"
+                    class="logout-button"
+                    onclick="logout()"
                 >
-                    Gửi
+                    Đăng xuất
                 </button>
 
             </div>
 
+
+            <!-- CHAT -->
+
+            <div class="chat-area">
+
+
+                <div class="receiver-box">
+
+                    <strong>
+                        Tin nhắn bảo mật
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="chat-box"
+                    id="chatBox"
+                >
+
+                    <div class="empty-message">
+                        Chưa có tin nhắn.
+                    </div>
+
+                </div>
+
+
+                <div class="message-input-area">
+
+                    <input
+                        type="text"
+                        id="messageInput"
+                        placeholder="Nhập tin nhắn..."
+                        onkeydown="handleEnter(event)"
+                    >
+
+                    <button
+                        id="sendButton"
+                        onclick="sendMessage()"
+                    >
+                        Mã Hóa & Gửi Tin Nhắn
+                    </button>
+
+                </div>
+
+
+                <div class="security-badge">
+
+                    RSA-2048 |
+                    AES-256-GCM |
+                    SHA-256 |
+                    RSA-PSS Digital Signature
+
+                </div>
+
+            </div>
+
         </div>
 
     </div>
 
 </div>
-```
 
-</div>
 
 <script>
 
-    // ==================================================
-    // SOCKET
-    // ==================================================
+    // =====================================================
+    // SOCKET.IO
+    // =====================================================
 
     const socket = io();
 
 
-    // ==================================================
-    // BIẾN
-    // ==================================================
+    // =====================================================
+    // GLOBAL VARIABLES
+    // =====================================================
 
-    let myUsername = "";
+    let currentUsername = null;
+
+    let isRegisterMode = false;
 
     let rsaKeyPair = null;
 
     let signKeyPair = null;
 
-    let isLoginMode = true;
+    let db = null;
 
-    let currentChatUser = "";
-
-    const chatHistory = {};
+    let dbReady = false;
 
 
-    // ==================================================
-    // INDEXED DB
-    // ==================================================
+    // =====================================================
+    // INDEXEDDB
+    // =====================================================
 
-    let db;
+    /*
+        Version 2 rất quan trọng.
+
+        Bản cũ dùng version 1 chỉ có messages.
+
+        Khi thêm store "keys", phải tăng version
+        để onupgradeneeded chạy lại.
+    */
+
+    const dbRequest =
+        indexedDB.open("SecureChatDB", 2);
 
 
-    const request = indexedDB.open(
-        "SecureChatDB",
-        1
-    );
+    dbRequest.onupgradeneeded = function(event) {
+
+        const database = event.target.result;
 
 
-    request.onupgradeneeded = function(event) {
+        // ================================
+        // MESSAGE STORE
+        // ================================
 
-        db = event.target.result;
-
-
-        // Store tin nhắn
-        if (!db.objectStoreNames.contains("messages")) {
+        if (
+            !database.objectStoreNames.contains(
+                "messages"
+            )
+        ) {
 
             const messageStore =
-                db.createObjectStore(
+                database.createObjectStore(
                     "messages",
                     {
                         keyPath: "id",
@@ -632,57 +705,156 @@
             messageStore.createIndex(
                 "chatKey",
                 "chatKey",
-                { unique: false }
+                {
+                    unique: false
+                }
             );
         }
 
 
-        // Store key
-        if (!db.objectStoreNames.contains("keys")) {
+        // ================================
+        // KEY STORE
+        // ================================
 
-            db.createObjectStore(
+        if (
+            !database.objectStoreNames.contains(
+                "keys"
+            )
+        ) {
+
+            database.createObjectStore(
                 "keys",
                 {
                     keyPath: "id"
                 }
             );
         }
+
     };
 
 
-    request.onsuccess = function(event) {
+    dbRequest.onsuccess = function(event) {
 
         db = event.target.result;
 
+        dbReady = true;
+
         console.log(
-            "IndexedDB connected."
+            "IndexedDB connected successfully."
         );
     };
 
 
-    request.onerror = function() {
+    dbRequest.onerror = function(event) {
 
         console.error(
-            "IndexedDB error."
+            "IndexedDB error:",
+            event.target.error
+        );
+
+        alert(
+            "Không thể khởi tạo bộ nhớ bảo mật!"
         );
     };
 
 
-    // ==================================================
-    // BUFFER -> BASE64
-    // ==================================================
+    // =====================================================
+    // CHỜ INDEXEDDB
+    // =====================================================
 
-    function bufferToBase64(buffer) {
+    function waitForDatabase() {
+
+        return new Promise(
+            (resolve, reject) => {
+
+                if (dbReady) {
+
+                    resolve();
+
+                    return;
+                }
+
+
+                const timer =
+                    setInterval(() => {
+
+                        if (dbReady) {
+
+                            clearInterval(timer);
+
+                            resolve();
+                        }
+
+                    }, 100);
+
+            }
+        );
+    }
+
+
+    // =====================================================
+    // SHA-256
+    // =====================================================
+
+    async function sha256(text) {
+
+        const encoder =
+            new TextEncoder();
+
+        const data =
+            encoder.encode(text);
+
+        const hashBuffer =
+            await crypto.subtle.digest(
+                "SHA-256",
+                data
+            );
+
+        const hashArray =
+            Array.from(
+                new Uint8Array(hashBuffer)
+            );
+
+        return hashArray
+            .map(
+                b => b
+                    .toString(16)
+                    .padStart(2, "0")
+            )
+            .join("");
+    }
+
+
+    // =====================================================
+    // ARRAY BUFFER -> BASE64
+    // =====================================================
+
+    function arrayBufferToBase64(buffer) {
 
         const bytes =
             new Uint8Array(buffer);
 
         let binary = "";
 
-        for (let i = 0; i < bytes.length; i++) {
+        const chunkSize = 0x8000;
+
+        for (
+            let i = 0;
+            i < bytes.length;
+            i += chunkSize
+        ) {
+
+            const chunk =
+                bytes.subarray(
+                    i,
+                    Math.min(
+                        i + chunkSize,
+                        bytes.length
+                    )
+                );
 
             binary += String.fromCharCode(
-                bytes[i]
+                ...chunk
             );
         }
 
@@ -690,17 +862,19 @@
     }
 
 
-    // ==================================================
-    // BASE64 -> BUFFER
-    // ==================================================
+    // =====================================================
+    // BASE64 -> ARRAY BUFFER
+    // =====================================================
 
-    function base64ToBuffer(base64) {
+    function base64ToArrayBuffer(base64) {
 
         const binary =
             atob(base64);
 
         const bytes =
-            new Uint8Array(binary.length);
+            new Uint8Array(
+                binary.length
+            );
 
         for (
             let i = 0;
@@ -716,23 +890,27 @@
     }
 
 
-    // ==================================================
-    // TẠO KEY
-    // ==================================================
+    // =====================================================
+    // GENERATE RSA KEYS
+    // =====================================================
 
     async function generateKeys() {
 
-        // RSA dùng để mã hóa khóa AES
+        // RSA-OAEP
         rsaKeyPair =
-            await window.crypto.subtle.generateKey(
-
+            await crypto.subtle.generateKey(
                 {
                     name: "RSA-OAEP",
+
                     modulusLength: 2048,
+
                     publicExponent:
-                        new Uint8Array(
-                            [1, 0, 1]
-                        ),
+                        new Uint8Array([
+                            1,
+                            0,
+                            1
+                        ]),
+
                     hash: "SHA-256"
                 },
 
@@ -745,17 +923,21 @@
             );
 
 
-        // RSA dùng để ký
+        // RSA-PSS
         signKeyPair =
-            await window.crypto.subtle.generateKey(
-
+            await crypto.subtle.generateKey(
                 {
                     name: "RSA-PSS",
+
                     modulusLength: 2048,
+
                     publicExponent:
-                        new Uint8Array(
-                            [1, 0, 1]
-                        ),
+                        new Uint8Array([
+                            1,
+                            0,
+                            1
+                        ]),
+
                     hash: "SHA-256"
                 },
 
@@ -766,78 +948,34 @@
                     "verify"
                 ]
             );
+
     }
 
 
-    // ==================================================
+    // =====================================================
     // EXPORT PUBLIC KEY
-    // ==================================================
+    // =====================================================
 
-    async function exportPubKey(key) {
+    async function exportPublicKey(publicKey) {
 
-        const exported =
-            await window.crypto.subtle.exportKey(
+        const spki =
+            await crypto.subtle.exportKey(
                 "spki",
-                key
+                publicKey
             );
 
-        return bufferToBase64(exported);
+        return arrayBufferToBase64(spki);
     }
 
 
-    // ==================================================
-    // IMPORT PUBLIC KEY RSA-OAEP
-    // ==================================================
+    // =====================================================
+    // SAVE KEYS TO INDEXEDDB
+    // =====================================================
 
-    async function importPubKey(base64) {
+    async function saveKeys() {
 
-        return await window.crypto.subtle.importKey(
+        await waitForDatabase();
 
-            "spki",
-
-            base64ToBuffer(base64),
-
-            {
-                name: "RSA-OAEP",
-                hash: "SHA-256"
-            },
-
-            false,
-
-            ["encrypt"]
-        );
-    }
-
-
-    // ==================================================
-    // IMPORT PUBLIC KEY RSA-PSS
-    // ==================================================
-
-    async function importSignPubKey(base64) {
-
-        return await window.crypto.subtle.importKey(
-
-            "spki",
-
-            base64ToBuffer(base64),
-
-            {
-                name: "RSA-PSS",
-                hash: "SHA-256"
-            },
-
-            false,
-
-            ["verify"]
-        );
-    }
-
-
-    // ==================================================
-    // LƯU KEY VÀO INDEXED DB
-    // ==================================================
-
-    function saveKeys() {
 
         return new Promise(
             (resolve, reject) => {
@@ -876,20 +1014,25 @@
                 transaction.oncomplete =
                     () => resolve();
 
+
                 transaction.onerror =
                     () => reject(
                         transaction.error
                     );
+
             }
         );
     }
 
 
-    // ==================================================
-    // ĐỌC KEY TỪ INDEXED DB
-    // ==================================================
+    // =====================================================
+    // LOAD KEYS FROM INDEXEDDB
+    // =====================================================
 
-    function loadKeys() {
+    async function loadKeys() {
+
+        await waitForDatabase();
+
 
         return new Promise(
             (resolve, reject) => {
@@ -905,6 +1048,7 @@
                         "keys"
                     );
 
+
                 const request =
                     store.get("myKeys");
 
@@ -912,9 +1056,13 @@
                 request.onsuccess =
                     function() {
 
-                        if (!request.result) {
+                        const data =
+                            request.result;
 
-                            resolve(null);
+
+                        if (!data) {
+
+                            resolve(false);
 
                             return;
                         }
@@ -923,10 +1071,10 @@
                         rsaKeyPair = {
 
                             publicKey:
-                                request.result.rsaPublicKey,
+                                data.rsaPublicKey,
 
                             privateKey:
-                                request.result.rsaPrivateKey
+                                data.rsaPrivateKey
 
                         };
 
@@ -934,10 +1082,10 @@
                         signKeyPair = {
 
                             publicKey:
-                                request.result.signPublicKey,
+                                data.signPublicKey,
 
                             privateKey:
-                                request.result.signPrivateKey
+                                data.signPrivateKey
 
                         };
 
@@ -947,130 +1095,93 @@
 
 
                 request.onerror =
-                    () => reject(
-                        request.error
-                    );
+                    function() {
+
+                        reject(
+                            request.error
+                        );
+
+                    };
+
             }
         );
     }
 
 
-    // ==================================================
-    // SHA-256
-    // ==================================================
+    // =====================================================
+    // AUTH MODE
+    // =====================================================
 
-    async function computeSHA256(text) {
+    document
+        .getElementById("switchText")
+        .addEventListener(
+            "click",
+            () => {
 
-        const encoder =
-            new TextEncoder();
-
-        const data =
-            encoder.encode(text);
-
-        const hash =
-            await window.crypto.subtle.digest(
-                "SHA-256",
-                data
-            );
-
-        return bufferToBase64(hash);
-    }
+                isRegisterMode =
+                    !isRegisterMode;
 
 
-    // ==================================================
-    // ĐỔI LOGIN / REGISTER
-    // ==================================================
+                const button =
+                    document.getElementById(
+                        "authButton"
+                    );
 
-    function toggleAuthMode() {
-
-        isLoginMode =
-            !isLoginMode;
-
-
-        const authTitle =
-            document.getElementById(
-                "authTitle"
-            );
-
-        const authButton =
-            document.getElementById(
-                "authButton"
-            );
-
-        const switchText =
-            document.getElementById(
-                "switchText"
-            );
-
-        const switchAction =
-            document.getElementById(
-                "switchAction"
-            );
+                const text =
+                    document.getElementById(
+                        "switchText"
+                    );
 
 
-        if (isLoginMode) {
+                if (isRegisterMode) {
 
-            authTitle.textContent =
-                "Đăng nhập hệ thống";
+                    button.textContent =
+                        "Đăng ký";
 
-            authButton.textContent =
-                "Đăng nhập";
+                    text.textContent =
+                        "Đã có tài khoản? Đăng nhập";
 
-            switchText.textContent =
-                "Chưa có tài khoản?";
+                } else {
 
-            switchAction.textContent =
-                "Đăng ký";
+                    button.textContent =
+                        "Đăng nhập";
 
-        } else {
+                    text.textContent =
+                        "Chưa có tài khoản? Đăng ký";
+                }
 
-            authTitle.textContent =
-                "Tạo tài khoản mới";
-
-            authButton.textContent =
-                "Đăng ký";
-
-            switchText.textContent =
-                "Đã có tài khoản?";
-
-            switchAction.textContent =
-                "Đăng nhập";
-        }
+            }
+        );
 
 
-        document.getElementById(
-            "authMessage"
-        ).textContent = "";
-    }
-
-
-    // ==================================================
-    // ĐĂNG NHẬP / ĐĂNG KÝ
-    // ==================================================
+    // =====================================================
+    // REGISTER / LOGIN
+    // =====================================================
 
     async function handleAuth() {
 
         const username =
-            document.getElementById(
-                "username"
-            ).value.trim();
+            document
+                .getElementById("username")
+                .value
+                .trim();
+
 
         const password =
-            document.getElementById(
-                "password"
-            ).value;
+            document
+                .getElementById("password")
+                .value;
 
 
-        const message =
-            document.getElementById(
-                "authMessage"
-            );
+        const status =
+            document
+                .getElementById("authStatus");
 
 
         if (!username || !password) {
 
-            message.textContent =
-                "Vui lòng nhập đầy đủ thông tin!";
+            status.textContent =
+                "Vui lòng nhập tài khoản và mật khẩu!";
 
             return;
         }
@@ -1078,30 +1189,38 @@
 
         try {
 
-            // ==========================================
+            // Chờ IndexedDB
+            await waitForDatabase();
+
+
+            // =================================================
             // ĐĂNG KÝ
-            // ==========================================
+            // =================================================
 
-            if (!isLoginMode) {
+            if (isRegisterMode) {
 
-                // Tạo key MỘT LẦN
+                status.textContent =
+                    "Đang tạo khóa bảo mật...";
+
+
+                // Tạo bộ khóa mới
                 await generateKeys();
 
 
                 const publicKey =
-                    await exportPubKey(
+                    await exportPublicKey(
                         rsaKeyPair.publicKey
                     );
 
 
                 const signPublicKey =
-                    await exportPubKey(
+                    await exportPublicKey(
                         signKeyPair.publicKey
                     );
 
 
-                // Lưu private key ở máy người dùng
-                await saveKeys();
+                status.textContent =
+                    "Đang đăng ký tài khoản...";
 
 
                 socket.emit(
@@ -1112,57 +1231,96 @@
                         publicKey,
                         signPublicKey
                     },
+                    async (response) => {
 
-                    (result) => {
+                        if (!response.success) {
 
-                        message.textContent =
-                            result.message;
+                            status.textContent =
+                                response.message;
 
-
-                        if (result.success) {
-
-                            // Chuyển sang login
-                            setTimeout(() => {
-
-                                toggleAuthMode();
-
-                            }, 1000);
+                            return;
                         }
+
+
+                        // Chỉ lưu private key
+                        // sau khi server đăng ký thành công
+                        try {
+
+                            await saveKeys();
+
+                            status.textContent =
+                                response.message;
+
+                            isRegisterMode =
+                                false;
+
+                            document
+                                .getElementById(
+                                    "authButton"
+                                )
+                                .textContent =
+                                "Đăng nhập";
+
+
+                            document
+                                .getElementById(
+                                    "switchText"
+                                )
+                                .textContent =
+                                "Chưa có tài khoản? Đăng ký";
+
+                        } catch (error) {
+
+                            console.error(error);
+
+                            status.textContent =
+                                "Đăng ký thành công nhưng không lưu được khóa trên trình duyệt.";
+
+                        }
+
                     }
                 );
-
 
                 return;
             }
 
 
-            // ==========================================
+            // =================================================
             // ĐĂNG NHẬP
-            // ==========================================
+            // =================================================
 
-            const loaded =
+            status.textContent =
+                "Đang tải khóa bảo mật...";
+
+
+            const keysLoaded =
                 await loadKeys();
 
 
-            if (!loaded) {
+            if (!keysLoaded) {
 
-                message.textContent =
-                    "Không tìm thấy khóa bảo mật trên thiết bị này. Hãy đăng ký tài khoản trên thiết bị này trước.";
+                status.textContent =
+                    "Không tìm thấy khóa bảo mật. " +
+                    "Bạn phải đăng nhập trên trình duyệt đã đăng ký tài khoản này.";
 
                 return;
             }
 
 
             const publicKey =
-                await exportPubKey(
+                await exportPublicKey(
                     rsaKeyPair.publicKey
                 );
 
 
             const signPublicKey =
-                await exportPubKey(
+                await exportPublicKey(
                     signKeyPair.publicKey
                 );
+
+
+            status.textContent =
+                "Đang đăng nhập...";
 
 
             socket.emit(
@@ -1173,68 +1331,75 @@
                     publicKey,
                     signPublicKey
                 },
+                (response) => {
 
-                (result) => {
+                    if (!response.success) {
 
-                    message.textContent =
-                        result.message;
+                        status.textContent =
+                            response.message;
 
-
-                    if (!result.success) {
                         return;
                     }
 
 
-                    // Lưu username
-                    myUsername =
+                    currentUsername =
                         username;
 
 
-                    document.getElementById(
-                        "currentUser"
-                    ).textContent =
-                        username;
+                    showChatScreen();
 
-
-                    // Ẩn auth
-                    document.getElementById(
-                        "authScreen"
-                    ).style.display =
-                        "none";
-
-
-                    // Hiện chat
-                    document.getElementById(
-                        "chatScreen"
-                    ).style.display =
-                        "block";
-
-
-                    // Lấy danh sách user
-                    socket.emit(
-                        "request_user_list"
-                    );
-
-
-                    // Đọc lại lịch sử
-                    loadMessageHistory();
                 }
             );
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                "Auth error:",
+                error
+            );
 
-            message.textContent =
-                "Có lỗi xảy ra. Vui lòng thử lại.";
-
+            status.textContent =
+                "Có lỗi: " +
+                error.message;
         }
     }
 
 
-    // ==================================================
-    // USER ONLINE
-    // ==================================================
+    // =====================================================
+    // SHOW CHAT
+    // =====================================================
+
+    async function showChatScreen() {
+
+        document
+            .getElementById("authScreen")
+            .style.display = "none";
+
+
+        document
+            .getElementById("chatScreen")
+            .style.display = "block";
+
+
+        document
+            .getElementById("currentUser")
+            .textContent =
+                currentUsername;
+
+
+        socket.emit(
+            "request_user_list"
+        );
+
+
+        await loadMessageHistory();
+
+    }
+
+
+    // =====================================================
+    // USER LIST
+    // =====================================================
 
     socket.on(
         "update_user_list",
@@ -1246,7 +1411,7 @@
                 );
 
 
-            const oldValue =
+            const currentValue =
                 select.value;
 
 
@@ -1261,7 +1426,7 @@
             defaultOption.value = "";
 
             defaultOption.textContent =
-                "-- Chọn người dùng --";
+                "-- Chọn người nhận --";
 
             select.appendChild(
                 defaultOption
@@ -1272,7 +1437,8 @@
                 (username) => {
 
                     if (
-                        username === myUsername
+                        username ===
+                        currentUsername
                     ) {
                         return;
                     }
@@ -1296,150 +1462,722 @@
             );
 
 
-            // Khôi phục lựa chọn
             if (
-                [...select.options]
-                    .some(
-                        option =>
-                            option.value ===
-                            oldValue
-                    )
+                users.includes(
+                    currentValue
+                )
             ) {
 
                 select.value =
-                    oldValue;
+                    currentValue;
             }
+
         }
     );
 
 
-    // ==================================================
-    // CHUYỂN CHAT
-    // ==================================================
+    // =====================================================
+    // SEND MESSAGE
+    // =====================================================
 
-    function switchChatUser() {
+    async function sendMessage() {
 
-        const select =
-            document.getElementById(
-                "receiverSelect"
+        if (!currentUsername) {
+            return;
+        }
+
+
+        const receiver =
+            document
+                .getElementById(
+                    "receiverSelect"
+                )
+                .value;
+
+
+        const input =
+            document
+                .getElementById(
+                    "messageInput"
+                );
+
+
+        const message =
+            input.value.trim();
+
+
+        if (!receiver) {
+
+            alert(
+                "Vui lòng chọn người nhận!"
             );
-
-
-        currentChatUser =
-            select.value;
-
-
-        const title =
-            document.getElementById(
-                "chatTitle"
-            );
-
-
-        if (!currentChatUser) {
-
-            title.textContent =
-                "Chưa chọn người nhận";
-
-            document.getElementById(
-                "messages"
-            ).replaceChildren();
 
             return;
         }
 
 
-        title.textContent =
-            "Đang trò chuyện với " +
-            currentChatUser;
+        if (!message) {
+            return;
+        }
 
 
-        renderCurrentChat();
+        const sendButton =
+            document.getElementById(
+                "sendButton"
+            );
+
+
+        try {
+
+            sendButton.disabled = true;
+
+            sendButton.textContent =
+                "Đang mã hóa...";
+
+
+            // =================================================
+            // 1. LẤY PUBLIC KEY NGƯỜI NHẬN
+            // =================================================
+
+            socket.emit(
+                "get_public_key",
+                receiver,
+                async (response) => {
+
+                    if (!response.success) {
+
+                        alert(
+                            response.message
+                        );
+
+                        sendButton.disabled =
+                            false;
+
+                        sendButton.textContent =
+                            "Mã Hóa & Gửi Tin Nhắn";
+
+                        return;
+                    }
+
+
+                    try {
+
+                        // =================================================
+                        // 2. IMPORT RSA PUBLIC KEY NGƯỜI NHẬN
+                        // =================================================
+
+                        const receiverPublicKey =
+                            await crypto.subtle.importKey(
+
+                                "spki",
+
+                                base64ToArrayBuffer(
+                                    response.publicKey
+                                ),
+
+                                {
+                                    name:
+                                        "RSA-OAEP",
+
+                                    hash:
+                                        "SHA-256"
+                                },
+
+                                false,
+
+                                [
+                                    "encrypt"
+                                ]
+                            );
+
+
+                        // =================================================
+                        // 3. SHA-256
+                        // =================================================
+
+                        const messageHash =
+                            await sha256(
+                                message
+                            );
+
+
+                        // =================================================
+                        // 4. TẠO PAYLOAD
+                        // =================================================
+
+                        const payload = {
+
+                            msg:
+                                message,
+
+                            hash:
+                                messageHash
+                        };
+
+
+                        const payloadText =
+                            JSON.stringify(
+                                payload
+                            );
+
+
+                        // =================================================
+                        // 5. RSA-PSS SIGNATURE
+                        // =================================================
+
+                        const signatureBuffer =
+                            await crypto.subtle.sign(
+
+                                {
+                                    name:
+                                        "RSA-PSS",
+
+                                    saltLength:
+                                        32
+                                },
+
+                                signKeyPair.privateKey,
+
+                                new TextEncoder()
+                                    .encode(
+                                        payloadText
+                                    )
+                            );
+
+
+                        const signature =
+                            arrayBufferToBase64(
+                                signatureBuffer
+                            );
+
+
+                        // =================================================
+                        // 6. TẠO AES-256 KEY
+                        // =================================================
+
+                        const aesKey =
+                            await crypto.subtle.generateKey(
+
+                                {
+                                    name:
+                                        "AES-GCM",
+
+                                    length:
+                                        256
+                                },
+
+                                true,
+
+                                [
+                                    "encrypt",
+                                    "decrypt"
+                                ]
+                            );
+
+
+                        // =================================================
+                        // 7. TẠO IV
+                        // =================================================
+
+                        const iv =
+                            crypto
+                                .getRandomValues(
+                                    new Uint8Array(
+                                        12
+                                    )
+                                );
+
+
+                        // =================================================
+                        // 8. AES-GCM ENCRYPT
+                        // =================================================
+
+                        const encryptedBuffer =
+                            await crypto.subtle.encrypt(
+
+                                {
+                                    name:
+                                        "AES-GCM",
+
+                                    iv:
+                                        iv
+                                },
+
+                                aesKey,
+
+                                new TextEncoder()
+                                    .encode(
+                                        payloadText
+                                    )
+                            );
+
+
+                        // =================================================
+                        // 9. EXPORT AES KEY
+                        // =================================================
+
+                        const rawAesKey =
+                            await crypto.subtle.exportKey(
+                                "raw",
+                                aesKey
+                            );
+
+
+                        // =================================================
+                        // 10. RSA-OAEP ENCRYPT AES KEY
+                        // =================================================
+
+                        const encryptedAesKeyBuffer =
+                            await crypto.subtle.encrypt(
+
+                                {
+                                    name:
+                                        "RSA-OAEP"
+                                },
+
+                                receiverPublicKey,
+
+                                rawAesKey
+                            );
+
+
+                        // =================================================
+                        // 11. TẠO PACKET
+                        // =================================================
+
+                        const packet = {
+
+                            senderUsername:
+                                currentUsername,
+
+                            receiverUsername:
+                                receiver,
+
+                            encryptedContent:
+                                arrayBufferToBase64(
+                                    encryptedBuffer
+                                ),
+
+                            encryptedAesKey:
+                                arrayBufferToBase64(
+                                    encryptedAesKeyBuffer
+                                ),
+
+                            iv:
+                                arrayBufferToBase64(
+                                    iv.buffer
+                                ),
+
+                            signature:
+                                signature,
+
+                            timestamp:
+                                Date.now()
+
+                        };
+
+
+                        // =================================================
+                        // 12. GỬI SERVER
+                        // =================================================
+
+                        socket.emit(
+                            "send_secure_message",
+                            packet
+                        );
+
+
+                        // =================================================
+                        // 13. HIỂN THỊ TIN NHẮN CỦA MÌNH
+                        // =================================================
+
+                        saveMessageLocally({
+
+                            senderUsername:
+                                currentUsername,
+
+                            receiverUsername:
+                                receiver,
+
+                            message:
+                                message,
+
+                            timestamp:
+                                packet.timestamp
+
+                        });
+
+
+                        renderMessageToUI({
+
+                            senderUsername:
+                                currentUsername,
+
+                            receiverUsername:
+                                receiver,
+
+                            message:
+                                message,
+
+                            timestamp:
+                                packet.timestamp
+
+                        });
+
+
+                        input.value = "";
+
+                    } catch (error) {
+
+                        console.error(
+                            "Encryption error:",
+                            error
+                        );
+
+                        alert(
+                            "Không thể mã hóa tin nhắn!"
+                        );
+
+                    } finally {
+
+                        sendButton.disabled =
+                            false;
+
+                        sendButton.textContent =
+                            "Mã Hóa & Gửi Tin Nhắn";
+                    }
+
+                }
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+            sendButton.disabled =
+                false;
+
+            sendButton.textContent =
+                "Mã Hóa & Gửi Tin Nhắn";
+        }
     }
 
 
-    // ==================================================
-    // CHAT KEY
-    // ==================================================
+    // =====================================================
+    // RECEIVE MESSAGE
+    // =====================================================
 
-    function getChatKey(
-        user1,
-        user2
-    ) {
+    socket.on(
+        "receive_secure_message",
+        async (packet) => {
 
-        return [
-            user1,
-            user2
-        ].sort().join("_");
-    }
+            try {
+
+                // =================================================
+                // 1. GIẢI MÃ AES KEY BẰNG RSA PRIVATE KEY
+                // =================================================
+
+                const encryptedAesKey =
+                    base64ToArrayBuffer(
+                        packet.encryptedAesKey
+                    );
 
 
-    // ==================================================
-    // LƯU MESSAGE
-    // ==================================================
+                const rawAesKey =
+                    await crypto.subtle.decrypt(
 
-    function saveToDatabase(packet) {
+                        {
+                            name:
+                                "RSA-OAEP"
+                        },
 
-        return new Promise(
-            (resolve, reject) => {
+                        rsaKeyPair.privateKey,
 
-                if (!db) {
+                        encryptedAesKey
+                    );
 
-                    resolve();
+
+                // =================================================
+                // 2. IMPORT AES KEY
+                // =================================================
+
+                const aesKey =
+                    await crypto.subtle.importKey(
+
+                        "raw",
+
+                        rawAesKey,
+
+                        {
+                            name:
+                                "AES-GCM"
+                        },
+
+                        false,
+
+                        [
+                            "decrypt"
+                        ]
+                    );
+
+
+                // =================================================
+                // 3. GIẢI MÃ NỘI DUNG
+                // =================================================
+
+                const iv =
+                    new Uint8Array(
+                        base64ToArrayBuffer(
+                            packet.iv
+                        )
+                    );
+
+
+                const encryptedContent =
+                    base64ToArrayBuffer(
+                        packet.encryptedContent
+                    );
+
+
+                const decryptedBuffer =
+                    await crypto.subtle.decrypt(
+
+                        {
+                            name:
+                                "AES-GCM",
+
+                            iv:
+                                iv
+                        },
+
+                        aesKey,
+
+                        encryptedContent
+                    );
+
+
+                const payloadText =
+                    new TextDecoder()
+                        .decode(
+                            decryptedBuffer
+                        );
+
+
+                const payload =
+                    JSON.parse(
+                        payloadText
+                    );
+
+
+                // =================================================
+                // 4. IMPORT SIGN PUBLIC KEY
+                // =================================================
+
+                const senderSignPublicKey =
+                    await crypto.subtle.importKey(
+
+                        "spki",
+
+                        base64ToArrayBuffer(
+                            packet.senderSignPubKey
+                        ),
+
+                        {
+                            name:
+                                "RSA-PSS",
+
+                            hash:
+                                "SHA-256"
+                        },
+
+                        false,
+
+                        [
+                            "verify"
+                        ]
+                    );
+
+
+                // =================================================
+                // 5. KIỂM TRA CHỮ KÝ
+                // =================================================
+
+                const signatureValid =
+                    await crypto.subtle.verify(
+
+                        {
+                            name:
+                                "RSA-PSS",
+
+                            saltLength:
+                                32
+                        },
+
+                        senderSignPublicKey,
+
+                        base64ToArrayBuffer(
+                            packet.signature
+                        ),
+
+                        new TextEncoder()
+                            .encode(
+                                payloadText
+                            )
+                    );
+
+
+                // =================================================
+                // 6. KIỂM TRA SHA-256
+                // =================================================
+
+                const calculatedHash =
+                    await sha256(
+                        payload.msg
+                    );
+
+
+                const hashValid =
+                    calculatedHash ===
+                    payload.hash;
+
+
+                // =================================================
+                // 7. NẾU CHỮ KÝ HOẶC HASH SAI
+                // =================================================
+
+                if (
+                    !signatureValid ||
+                    !hashValid
+                ) {
+
+                    renderWarningMessage(
+                        "⚠️ Cảnh báo: Tin nhắn không hợp lệ hoặc đã bị thay đổi!"
+                    );
 
                     return;
                 }
 
 
-                const chatKey =
-                    getChatKey(
+                // =================================================
+                // 8. HIỂN THỊ
+                // =================================================
+
+                const localMessage = {
+
+                    senderUsername:
                         packet.senderUsername,
-                        packet.receiverUsername
-                    );
+
+                    receiverUsername:
+                        packet.receiverUsername,
+
+                    message:
+                        payload.msg,
+
+                    timestamp:
+                        packet.timestamp
+
+                };
 
 
-                const transaction =
-                    db.transaction(
-                        ["messages"],
-                        "readwrite"
-                    );
+                renderMessageToUI(
+                    localMessage
+                );
 
 
-                const store =
-                    transaction.objectStore(
-                        "messages"
-                    );
+                saveMessageLocally(
+                    localMessage
+                );
 
+            } catch (error) {
 
-                store.add({
+                console.error(
+                    "Decrypt error:",
+                    error
+                );
 
-                    chatKey: chatKey,
-
-                    ...packet
-
-                });
-
-
-                transaction.oncomplete =
-                    () => resolve();
-
-                transaction.onerror =
-                    () => reject(
-                        transaction.error
-                    );
+                renderWarningMessage(
+                    "⚠️ Không thể giải mã tin nhắn!"
+                );
             }
-        );
+
+        }
+    );
+
+
+    // =====================================================
+    // SAVE MESSAGE
+    // =====================================================
+
+    function saveMessageLocally(messageData) {
+
+        if (!dbReady) {
+            return;
+        }
+
+
+        const chatKey =
+            createChatKey(
+                messageData.senderUsername,
+                messageData.receiverUsername
+            );
+
+
+        const transaction =
+            db.transaction(
+                ["messages"],
+                "readwrite"
+            );
+
+
+        const store =
+            transaction.objectStore(
+                "messages"
+            );
+
+
+        store.add({
+
+            chatKey:
+                chatKey,
+
+            senderUsername:
+                messageData.senderUsername,
+
+            receiverUsername:
+                messageData.receiverUsername,
+
+            message:
+                messageData.message,
+
+            timestamp:
+                messageData.timestamp
+
+        });
     }
 
 
-    // ==================================================
-    // LOAD MESSAGE HISTORY
-    // ==================================================
+    // =====================================================
+    // CREATE CHAT KEY
+    // =====================================================
 
-    function loadMessageHistory() {
+    function createChatKey(user1, user2) {
 
-        if (!db || !myUsername) {
-            return;
-        }
+        return [
+            user1,
+            user2
+        ]
+            .sort()
+            .join("::");
+    }
+
+
+    // =====================================================
+    // LOAD HISTORY
+    // =====================================================
+
+    async function loadMessageHistory() {
+
+        await waitForDatabase();
 
 
         const transaction =
@@ -1455,176 +2193,138 @@
             );
 
 
-        const request =
-            store.getAll();
+        return new Promise(
+            (resolve) => {
+
+                const request =
+                    store.getAll();
 
 
-        request.onsuccess =
-            function() {
+                request.onsuccess =
+                    function() {
 
-                chatHistoryClear();
-
-
-                request.result.forEach(
-                    (packet) => {
-
-                        const chatKey =
-                            getChatKey(
-                                packet.senderUsername,
-                                packet.receiverUsername
-                            );
+                        const messages =
+                            request.result;
 
 
-                        if (!chatHistory[chatKey]) {
+                        document
+                            .getElementById(
+                                "chatBox"
+                            )
+                            .innerHTML = "";
 
-                            chatHistory[chatKey] = [];
+
+                        if (
+                            messages.length ===
+                            0
+                        ) {
+
+                            showEmptyMessage();
+
+                            resolve();
+
+                            return;
                         }
 
 
-                        chatHistory[chatKey].push(
-                            packet
+                        messages
+                            .sort(
+                                (a, b) =>
+                                    a.timestamp -
+                                    b.timestamp
+                            );
+
+
+                        messages.forEach(
+                            message => {
+
+                                renderMessageToUI(
+                                    message
+                                );
+
+                            }
                         );
-                    }
-                );
 
 
-                // Sắp xếp theo thời gian
-                Object.keys(
-                    chatHistory
-                ).forEach(
-                    (key) => {
+                        resolve();
+                    };
 
-                        chatHistory[key].sort(
-                            (a, b) =>
-                                (a.timestamp || 0) -
-                                (b.timestamp || 0)
-                        );
-                    }
-                );
-
-
-                if (currentChatUser) {
-
-                    renderCurrentChat();
-                }
-            };
-    }
-
-
-    // ==================================================
-    // XÓA HISTORY TRONG RAM
-    // ==================================================
-
-    function chatHistoryClear() {
-
-        Object.keys(
-            chatHistory
-        ).forEach(
-            key => delete chatHistory[key]
+            }
         );
     }
 
 
-    // ==================================================
-    // RENDER CHAT HIỆN TẠI
-    // ==================================================
+    // =====================================================
+    // RENDER MESSAGE
+    // =====================================================
 
-    function renderCurrentChat() {
+    function renderMessageToUI(data) {
 
-        const messages =
+        const chatBox =
             document.getElementById(
-                "messages"
+                "chatBox"
             );
 
 
-        messages.replaceChildren();
+        const empty =
+            chatBox.querySelector(
+                ".empty-message"
+            );
 
 
-        if (!currentChatUser) {
-            return;
+        if (empty) {
+            empty.remove();
         }
 
 
-        const chatKey =
-            getChatKey(
-                myUsername,
-                currentChatUser
-            );
-
-
-        const history =
-            chatHistory[chatKey] || [];
-
-
-        history.forEach(
-            packet => {
-
-                renderMessageToUI(
-                    packet
-                );
-            }
-        );
-
-
-        messages.scrollTop =
-            messages.scrollHeight;
-    }
-
-
-    // ==================================================
-    // HIỂN THỊ MESSAGE AN TOÀN
-    // ==================================================
-
-    function renderMessageToUI(packet) {
-
-        const messages =
-            document.getElementById(
-                "messages"
-            );
-
-
-        const isMe =
-            packet.senderUsername ===
-            myUsername;
-
-
-        const wrapper =
+        const messageDiv =
             document.createElement(
                 "div"
             );
 
 
-        wrapper.className =
-            "message " +
-            (isMe ? "me" : "other");
+        const isMine =
+            data.senderUsername ===
+            currentUsername;
 
 
-        // ----------------------------------------------
-        // Người gửi
-        // ----------------------------------------------
+        messageDiv.className =
+            "message" +
+            (isMine
+                ? " mine"
+                : "");
 
-        const info =
+
+        const contentDiv =
             document.createElement(
                 "div"
             );
 
 
-        info.className =
+        contentDiv.className =
+            "message-content";
+
+
+        const infoDiv =
+            document.createElement(
+                "div"
+            );
+
+
+        infoDiv.className =
             "message-info";
 
 
-        const date =
-            packet.timestamp
-                ? new Date(
-                    packet.timestamp
-                )
-                : new Date();
+        const time =
+            new Date(
+                data.timestamp
+            );
 
 
-        info.textContent =
-            packet.senderUsername +
+        infoDiv.textContent =
+            data.senderUsername +
             " • " +
-            date.toLocaleTimeString(
+            time.toLocaleTimeString(
                 "vi-VN",
                 {
                     hour: "2-digit",
@@ -1633,657 +2333,187 @@
             );
 
 
-        // ----------------------------------------------
-        // Nội dung
-        // ----------------------------------------------
-
-        const box =
+        const textDiv =
             document.createElement(
                 "div"
             );
 
 
-        box.className =
-            "message-box";
+        textDiv.className =
+            "message-text";
 
 
-        // QUAN TRỌNG:
-        // Dùng textContent thay vì innerHTML
-        box.textContent =
-            packet.message || "";
+        // textContent để chống XSS
+        textDiv.textContent =
+            data.message;
 
 
-        wrapper.appendChild(
-            info
+        contentDiv.appendChild(
+            infoDiv
         );
 
-        wrapper.appendChild(
-            box
+        contentDiv.appendChild(
+            textDiv
+        );
+
+        messageDiv.appendChild(
+            contentDiv
+        );
+
+        chatBox.appendChild(
+            messageDiv
         );
 
 
-        messages.appendChild(
-            wrapper
+        chatBox.scrollTop =
+            chatBox.scrollHeight;
+    }
+
+
+    // =====================================================
+    // WARNING MESSAGE
+    // =====================================================
+
+    function renderWarningMessage(text) {
+
+        const chatBox =
+            document.getElementById(
+                "chatBox"
+            );
+
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.style.color =
+            "#fca5a5";
+
+        div.style.textAlign =
+            "center";
+
+        div.style.padding =
+            "10px";
+
+
+        div.textContent =
+            text;
+
+
+        chatBox.appendChild(
+            div
+        );
+
+
+        chatBox.scrollTop =
+            chatBox.scrollHeight;
+    }
+
+
+    // =====================================================
+    // EMPTY MESSAGE
+    // =====================================================
+
+    function showEmptyMessage() {
+
+        const chatBox =
+            document.getElementById(
+                "chatBox"
+            );
+
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+
+        div.className =
+            "empty-message";
+
+
+        div.textContent =
+            "Chưa có tin nhắn.";
+
+
+        chatBox.appendChild(
+            div
         );
     }
 
 
-    // ==================================================
-    // GỬI TIN NHẮN MÃ HÓA
-    // ==================================================
+    // =====================================================
+    // ENTER TO SEND
+    // =====================================================
 
-    async function sendEncryptedMessage() {
+    function handleEnter(event) {
 
-        const input =
-            document.getElementById(
-                "messageInput"
-            );
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
 
+            event.preventDefault();
 
-        const text =
-            input.value.trim();
-
-
-        const receiver =
-            document.getElementById(
-                "receiverSelect"
-            ).value;
-
-
-        if (!text) {
-            return;
-        }
-
-
-        if (!receiver) {
-
-            alert(
-                "Vui lòng chọn người nhận!"
-            );
-
-            return;
-        }
-
-
-        try {
-
-            // ==========================================
-            // 1. LẤY PUBLIC KEY NGƯỜI NHẬN
-            // ==========================================
-
-            socket.emit(
-                "get_public_key",
-                receiver,
-
-                async (result) => {
-
-                    if (!result.success) {
-
-                        alert(
-                            result.message
-                        );
-
-                        return;
-                    }
-
-
-                    // ==================================
-                    // 2. TẠO SHA-256
-                    // ==================================
-
-                    const hash =
-                        await computeSHA256(
-                            text
-                        );
-
-
-                    // ==================================
-                    // 3. TẠO PAYLOAD
-                    // ==================================
-
-                    const payload =
-                        JSON.stringify({
-
-                            msg: text,
-
-                            hash: hash
-
-                        });
-
-
-                    // ==================================
-                    // 4. KÝ RSA-PSS
-                    // ==================================
-
-                    const encoder =
-                        new TextEncoder();
-
-
-                    const signature =
-                        await window.crypto.subtle.sign(
-
-                            {
-                                name: "RSA-PSS",
-
-                                saltLength: 32
-                            },
-
-                            signKeyPair.privateKey,
-
-                            encoder.encode(
-                                payload
-                            )
-                        );
-
-
-                    // ==================================
-                    // 5. TẠO AES-256
-                    // ==================================
-
-                    const aesKey =
-                        await window.crypto.subtle.generateKey(
-
-                            {
-                                name: "AES-GCM",
-
-                                length: 256
-                            },
-
-                            true,
-
-                            [
-                                "encrypt",
-                                "decrypt"
-                            ]
-                        );
-
-
-                    // ==================================
-                    // 6. IV
-                    // ==================================
-
-                    const iv =
-                        window.crypto.getRandomValues(
-                            new Uint8Array(12)
-                        );
-
-
-                    // ==================================
-                    // 7. AES ENCRYPT
-                    // ==================================
-
-                    const cipherText =
-                        await window.crypto.subtle.encrypt(
-
-                            {
-                                name: "AES-GCM",
-
-                                iv: iv
-                            },
-
-                            aesKey,
-
-                            encoder.encode(
-                                payload
-                            )
-                        );
-
-
-                    // ==================================
-                    // 8. EXPORT AES KEY
-                    // ==================================
-
-                    const rawAesKey =
-                        await window.crypto.subtle.exportKey(
-                            "raw",
-                            aesKey
-                        );
-
-
-                    // ==================================
-                    // 9. IMPORT PUBLIC KEY RECEIVER
-                    // ==================================
-
-                    const receiverPublicKey =
-                        await importPubKey(
-                            result.publicKey
-                        );
-
-
-                    // ==================================
-                    // 10. RSA-OAEP ENCRYPT AES KEY
-                    // ==================================
-
-                    const encryptedAesKey =
-                        await window.crypto.subtle.encrypt(
-
-                            {
-                                name: "RSA-OAEP"
-                            },
-
-                            receiverPublicKey,
-
-                            rawAesKey
-                        );
-
-
-                    // ==================================
-                    // 11. PACKET
-                    // ==================================
-
-                    const packet = {
-
-                        senderUsername:
-                            myUsername,
-
-                        receiverUsername:
-                            receiver,
-
-                        encryptedContent:
-                            bufferToBase64(
-                                cipherText
-                            ),
-
-                        encryptedAesKey:
-                            bufferToBase64(
-                                encryptedAesKey
-                            ),
-
-                        iv:
-                            bufferToBase64(
-                                iv
-                            ),
-
-                        signature:
-                            bufferToBase64(
-                                signature
-                            ),
-
-                        timestamp:
-                            Date.now()
-                    };
-
-
-                    // ==================================
-                    // 12. GỬI SERVER
-                    // ==================================
-
-                    socket.emit(
-                        "send_secure_message",
-                        packet
-                    );
-
-
-                    // ==================================
-                    // 13. LƯU LOCAL
-                    // ==================================
-
-                    const localPacket = {
-
-                        ...packet,
-
-                        message: text
-
-                    };
-
-
-                    const chatKey =
-                        getChatKey(
-                            myUsername,
-                            receiver
-                        );
-
-
-                    if (
-                        !chatHistory[chatKey]
-                    ) {
-
-                        chatHistory[chatKey] =
-                            [];
-                    }
-
-
-                    chatHistory[chatKey].push(
-                        localPacket
-                    );
-
-
-                    // Lưu database
-                    await saveToDatabase(
-                        localPacket
-                    );
-
-
-                    // Hiển thị
-                    renderCurrentChat();
-
-
-                    // Xóa input
-                    input.value = "";
-
-                }
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Encryption error:",
-                error
-            );
-
-            alert(
-                "Có lỗi trong quá trình mã hóa tin nhắn!"
-            );
+            sendMessage();
         }
     }
 
 
-    // ==================================================
-    // NHẬN TIN NHẮN
-    // ==================================================
+    // =====================================================
+    // LOGOUT
+    // =====================================================
 
-    socket.on(
-        "receive_secure_message",
-        async (packet) => {
+    function logout() {
 
-            try {
+        socket.emit(
+            "logout_account"
+        );
 
-                // ======================================
-                // 1. KIỂM TRA NGƯỜI NHẬN
-                // ======================================
 
-                if (
-                    packet.receiverUsername !==
-                    myUsername
-                ) {
+        currentUsername = null;
 
-                    return;
-                }
 
+        rsaKeyPair = null;
 
-                // ======================================
-                // 2. RSA-OAEP DECRYPT AES KEY
-                // ======================================
+        signKeyPair = null;
 
-                const encryptedAesKey =
-                    base64ToBuffer(
-                        packet.encryptedAesKey
-                    );
 
+        document
+            .getElementById(
+                "chatScreen"
+            )
+            .style.display = "none";
 
-                const rawAesKey =
-                    await window.crypto.subtle.decrypt(
 
-                        {
-                            name: "RSA-OAEP"
-                        },
+        document
+            .getElementById(
+                "authScreen"
+            )
+            .style.display = "block";
 
-                        rsaKeyPair.privateKey,
 
-                        encryptedAesKey
-                    );
+        document
+            .getElementById(
+                "password"
+            )
+            .value = "";
 
 
-                // ======================================
-                // 3. IMPORT AES KEY
-                // ======================================
+        document
+            .getElementById(
+                "authStatus"
+            )
+            .textContent =
+            "Đã đăng xuất.";
+    }
 
-                const aesKey =
-                    await window.crypto.subtle.importKey(
 
-                        "raw",
-
-                        rawAesKey,
-
-                        {
-                            name: "AES-GCM"
-                        },
-
-                        false,
-
-                        ["decrypt"]
-                    );
-
-
-                // ======================================
-                // 4. AES-GCM DECRYPT
-                // ======================================
-
-                const decrypted =
-                    await window.crypto.subtle.decrypt(
-
-                        {
-                            name: "AES-GCM",
-
-                            iv:
-                                new Uint8Array(
-                                    base64ToBuffer(
-                                        packet.iv
-                                    )
-                                )
-                        },
-
-                        aesKey,
-
-                        base64ToBuffer(
-                            packet.encryptedContent
-                        )
-                    );
-
-
-                const decoder =
-                    new TextDecoder();
-
-
-                const payloadText =
-                    decoder.decode(
-                        decrypted
-                    );
-
-
-                const payload =
-                    JSON.parse(
-                        payloadText
-                    );
-
-
-                // ======================================
-                // 5. VERIFY RSA-PSS
-                // ======================================
-
-                const senderSignPublicKey =
-                    await importSignPubKey(
-                        packet.senderSignPubKey
-                    );
-
-
-                const signatureValid =
-                    await window.crypto.subtle.verify(
-
-                        {
-                            name: "RSA-PSS",
-
-                            saltLength: 32
-                        },
-
-                        senderSignPublicKey,
-
-                        base64ToBuffer(
-                            packet.signature
-                        ),
-
-                        new TextEncoder().encode(
-                            payloadText
-                        )
-                    );
-
-
-                // ======================================
-                // 6. TÍNH LẠI SHA-256
-                // ======================================
-
-                const calculatedHash =
-                    await computeSHA256(
-                        payload.msg
-                    );
-
-
-                const hashValid =
-                    calculatedHash ===
-                    payload.hash;
-
-
-                // ======================================
-                // 7. KIỂM TRA BẢO MẬT
-                // ======================================
-
-                if (
-                    !signatureValid ||
-                    !hashValid
-                ) {
-
-                    const warning =
-                        document.createElement(
-                            "div"
-                        );
-
-
-                    warning.className =
-                        "security-warning";
-
-
-                    warning.textContent =
-                        "⚠️ Cảnh báo: Tin nhắn không vượt qua kiểm tra bảo mật.";
-
-
-                    document
-                        .getElementById(
-                            "messages"
-                        )
-                        .appendChild(
-                            warning
-                        );
-
-
-                    return;
-                }
-
-
-                // ======================================
-                // 8. TẠO PACKET ĐÃ GIẢI MÃ
-                // ======================================
-
-                const localPacket = {
-
-                    senderUsername:
-                        packet.senderUsername,
-
-                    receiverUsername:
-                        packet.receiverUsername,
-
-                    message:
-                        payload.msg,
-
-                    timestamp:
-                        packet.timestamp || Date.now(),
-
-                    encryptedContent:
-                        packet.encryptedContent,
-
-                    encryptedAesKey:
-                        packet.encryptedAesKey,
-
-                    iv:
-                        packet.iv,
-
-                    signature:
-                        packet.signature,
-
-                    senderSignPubKey:
-                        packet.senderSignPubKey
-                };
-
-
-                // ======================================
-                // 9. LƯU HISTORY
-                // ======================================
-
-                const chatKey =
-                    getChatKey(
-                        packet.senderUsername,
-                        packet.receiverUsername
-                    );
-
-
-                if (
-                    !chatHistory[chatKey]
-                ) {
-
-                    chatHistory[chatKey] =
-                        [];
-                }
-
-
-                chatHistory[chatKey].push(
-                    localPacket
-                );
-
-
-                await saveToDatabase(
-                    localPacket
-                );
-
-
-                // ======================================
-                // 10. HIỂN THỊ
-                // ======================================
-
-                if (
-                    currentChatUser ===
-                    packet.senderUsername
-                ) {
-
-                    renderCurrentChat();
-                }
-
-
-            } catch (error) {
-
-                console.error(
-                    "Decryption/verification error:",
-                    error
-                );
-
-
-                const warning =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                warning.className =
-                    "security-warning";
-
-
-                warning.textContent =
-                    "⚠️ Không thể giải mã hoặc xác thực tin nhắn.";
-
-
-                document
-                    .getElementById(
-                        "messages"
-                    )
-                    .appendChild(
-                        warning
-                    );
-            }
-        }
-    );
-
-
-    // ==================================================
+    // =====================================================
     // FORCE LOGOUT
-    // ==================================================
+    // =====================================================
 
     socket.on(
         "force_logout",
@@ -2294,41 +2524,53 @@
             );
 
 
-            location.reload();
+            currentUsername = null;
+
+            rsaKeyPair = null;
+
+            signKeyPair = null;
+
+
+            document
+                .getElementById(
+                    "chatScreen"
+                )
+                .style.display = "none";
+
+
+            document
+                .getElementById(
+                    "authScreen"
+                )
+                .style.display = "block";
+
+
+            document
+                .getElementById(
+                    "authStatus"
+                )
+                .textContent =
+                "Phiên đăng nhập đã kết thúc.";
         }
     );
 
 
-    // ==================================================
-    // ĐĂNG XUẤT
-    // ==================================================
+    // =====================================================
+    // SEND ERROR
+    // =====================================================
 
-    function logout() {
+    socket.on(
+        "message_send_error",
+        (data) => {
 
-        socket.emit(
-            "logout_account"
-        );
-
-
-        location.reload();
-    }
-
-
-    // ==================================================
-    // ENTER ĐỂ GỬI
-    // ==================================================
-
-    function handleEnter(event) {
-
-        if (
-            event.key === "Enter"
-        ) {
-
-            sendEncryptedMessage();
+            alert(
+                data.message
+            );
         }
-    }
+    );
 
 </script>
 
 </body>
+
 </html>
