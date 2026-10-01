@@ -9,30 +9,27 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// ======================================================
-// DỮ LIỆU NGƯỜI DÙNG
-// ======================================================
+// ===============================
+// DATABASE TẠM THỜI TRÊN SERVER
+// ===============================
 
 // {
-//     username: {
-//         passwordHash,
-//         publicKey,
-//         signPublicKey
-//     }
+//   username: {
+//      passwordHash,
+//      publicKey,
+//      signPublicKey
+//   }
 // }
-
 const registeredUsers = {};
 
 // {
-//     username: socketId
+//   username: socketId
 // }
-
 const onlineUsers = {};
 
-
-// ======================================================
-// HÀM BĂM MẬT KHẨU
-// ======================================================
+// ===============================
+// SHA-256
+// ===============================
 
 function hashPassword(password) {
     return crypto
@@ -41,163 +38,193 @@ function hashPassword(password) {
         .digest('hex');
 }
 
-
-// ======================================================
+// ===============================
 // SOCKET.IO
-// ======================================================
+// ===============================
 
 io.on('connection', (socket) => {
 
     console.log('Client connected:', socket.id);
 
-
-    // ==================================================
+    // ==========================================
     // ĐĂNG KÝ
-    // ==================================================
+    // ==========================================
 
     socket.on('register_account', (data, callback) => {
 
-        const {
-            username,
-            password,
-            publicKey,
-            signPublicKey
-        } = data;
+        try {
+            const {
+                username,
+                password,
+                publicKey,
+                signPublicKey
+            } = data;
 
-        // Kiểm tra dữ liệu
-        if (!username || !password || !publicKey || !signPublicKey) {
-            return callback({
+            if (
+                !username ||
+                !password ||
+                !publicKey ||
+                !signPublicKey
+            ) {
+                return callback({
+                    success: false,
+                    message: 'Vui lòng nhập đầy đủ thông tin!'
+                });
+            }
+
+            if (username.length < 3) {
+                return callback({
+                    success: false,
+                    message: 'Tên tài khoản phải có ít nhất 3 ký tự!'
+                });
+            }
+
+            if (password.length < 4) {
+                return callback({
+                    success: false,
+                    message: 'Mật khẩu phải có ít nhất 4 ký tự!'
+                });
+            }
+
+            if (registeredUsers[username]) {
+                return callback({
+                    success: false,
+                    message: 'Tên tài khoản đã tồn tại!'
+                });
+            }
+
+            registeredUsers[username] = {
+                passwordHash: hashPassword(password),
+
+                // RSA-OAEP public key
+                publicKey: publicKey,
+
+                // RSA-PSS public key
+                signPublicKey: signPublicKey
+            };
+
+            console.log(`User registered: ${username}`);
+
+            callback({
+                success: true,
+                message: 'Đăng ký thành công! Vui lòng đăng nhập.'
+            });
+
+        } catch (error) {
+
+            console.error('Register error:', error);
+
+            callback({
                 success: false,
-                message: 'Vui lòng nhập đầy đủ thông tin!'
+                message: 'Có lỗi xảy ra khi đăng ký!'
             });
         }
-
-        // Kiểm tra tài khoản tồn tại
-        if (registeredUsers[username]) {
-            return callback({
-                success: false,
-                message: 'Tên tài khoản đã tồn tại!'
-            });
-        }
-
-        // Tạo tài khoản
-        registeredUsers[username] = {
-            passwordHash: hashPassword(password),
-
-            // Public key mã hóa RSA-OAEP
-            publicKey: publicKey,
-
-            // Public key chữ ký RSA-PSS
-            signPublicKey: signPublicKey
-        };
-
-        console.log('Registered user:', username);
-
-        callback({
-            success: true,
-            message: 'Đăng ký thành công! Vui lòng chuyển sang Đăng nhập.'
-        });
     });
 
-
-    // ==================================================
+    // ==========================================
     // ĐĂNG NHẬP
-    // ==================================================
+    // ==========================================
 
     socket.on('login_account', (data, callback) => {
 
-        const {
-            username,
-            password,
-            publicKey,
-            signPublicKey
-        } = data;
+        try {
+            const {
+                username,
+                password,
+                publicKey,
+                signPublicKey
+            } = data;
 
-        const user = registeredUsers[username];
+            const user = registeredUsers[username];
 
-        // Kiểm tra tài khoản
-        if (!user) {
-            return callback({
-                success: false,
-                message: 'Tài khoản hoặc mật khẩu không đúng!'
-            });
-        }
-
-        // Kiểm tra mật khẩu
-        if (user.passwordHash !== hashPassword(password)) {
-            return callback({
-                success: false,
-                message: 'Tài khoản hoặc mật khẩu không đúng!'
-            });
-        }
-
-
-        // ==================================================
-        // KIỂM TRA PUBLIC KEY
-        // ==================================================
-
-        // Không cho client tự ý thay đổi key của tài khoản
-        if (
-            user.publicKey !== publicKey ||
-            user.signPublicKey !== signPublicKey
-        ) {
-            return callback({
-                success: false,
-                message:
-                    'Khóa bảo mật không khớp với tài khoản này. Hãy đăng nhập trên thiết bị đã đăng ký.'
-            });
-        }
-
-
-        // ==================================================
-        // LƯU PHIÊN ĐĂNG NHẬP
-        // ==================================================
-
-        // Nếu tài khoản đang đăng nhập ở socket khác
-        if (onlineUsers[username]) {
-
-            const oldSocketId = onlineUsers[username];
-
-            // Ngắt phiên cũ
-            const oldSocket = io.sockets.sockets.get(oldSocketId);
-
-            if (oldSocket) {
-                oldSocket.emit('force_logout', {
-                    message: 'Tài khoản đã đăng nhập ở nơi khác.'
+            if (!user) {
+                return callback({
+                    success: false,
+                    message: 'Tài khoản không tồn tại!'
                 });
-
-                oldSocket.disconnect(true);
             }
+
+            // Kiểm tra password bằng SHA-256
+            if (
+                user.passwordHash !==
+                hashPassword(password)
+            ) {
+                return callback({
+                    success: false,
+                    message: 'Mật khẩu không đúng!'
+                });
+            }
+
+            // ==========================================
+            // KIỂM TRA KHÓA
+            // ==========================================
+
+            if (
+                user.publicKey !== publicKey ||
+                user.signPublicKey !== signPublicKey
+            ) {
+                return callback({
+                    success: false,
+                    message:
+                        'Khóa bảo mật không khớp. ' +
+                        'Hãy đăng nhập trên thiết bị/trình duyệt đã đăng ký tài khoản này.'
+                });
+            }
+
+            // ==========================================
+            // NẾU USER ĐÃ ONLINE
+            // ==========================================
+
+            if (onlineUsers[username]) {
+
+                const oldSocketId = onlineUsers[username];
+
+                const oldSocket = io.sockets.sockets.get(oldSocketId);
+
+                if (oldSocket) {
+                    oldSocket.emit('force_logout', {
+                        message:
+                            'Tài khoản của bạn vừa đăng nhập ở nơi khác.'
+                    });
+
+                    oldSocket.disconnect(true);
+                }
+            }
+
+            // ==========================================
+            // LƯU ONLINE USER
+            // ==========================================
+
+            onlineUsers[username] = socket.id;
+
+            socket.username = username;
+
+            console.log(`User login: ${username}`);
+
+            callback({
+                success: true,
+                message: 'Đăng nhập thành công!'
+            });
+
+            io.emit(
+                'update_user_list',
+                Object.keys(onlineUsers)
+            );
+
+        } catch (error) {
+
+            console.error('Login error:', error);
+
+            callback({
+                success: false,
+                message: 'Có lỗi xảy ra khi đăng nhập!'
+            });
         }
-
-
-        // Lưu socket
-        onlineUsers[username] = socket.id;
-
-        // Gắn username vào socket
-        socket.username = username;
-
-
-        console.log('User logged in:', username);
-
-
-        callback({
-            success: true,
-            message: 'Đăng nhập thành công!'
-        });
-
-
-        // Cập nhật danh sách online
-        io.emit(
-            'update_user_list',
-            Object.keys(onlineUsers)
-        );
     });
 
-
-    // ==================================================
-    // YÊU CẦU DANH SÁCH USER ONLINE
-    // ==================================================
+    // ==========================================
+    // LẤY DANH SÁCH USER ONLINE
+    // ==========================================
 
     socket.on('request_user_list', () => {
 
@@ -207,10 +234,9 @@ io.on('connection', (socket) => {
         );
     });
 
-
-    // ==================================================
-    // LẤY PUBLIC KEY CỦA USER
-    // ==================================================
+    // ==========================================
+    // LẤY PUBLIC KEY CỦA NGƯỜI NHẬN
+    // ==========================================
 
     socket.on('get_public_key', (targetUser, callback) => {
 
@@ -219,144 +245,123 @@ io.on('connection', (socket) => {
         if (!user) {
             return callback({
                 success: false,
-                message: 'Không tìm thấy người dùng!'
+                message: 'Người dùng không tồn tại!'
             });
         }
 
         if (!onlineUsers[targetUser]) {
             return callback({
                 success: false,
-                message: 'Người dùng không trực tuyến!'
+                message: 'Người dùng hiện không trực tuyến!'
             });
         }
-
 
         callback({
             success: true,
 
-            // Public key RSA-OAEP
             publicKey: user.publicKey,
 
-            // Public key RSA-PSS
             signPublicKey: user.signPublicKey
         });
     });
 
-
-    // ==================================================
-    // GỬI TIN NHẮN MÃ HÓA
-    // ==================================================
+    // ==========================================
+    // GỬI TIN NHẮN ĐÃ MÃ HÓA
+    // ==========================================
 
     socket.on('send_secure_message', (packet) => {
 
-        // ------------------------------------------------
-        // 1. Kiểm tra socket đã đăng nhập chưa
-        // ------------------------------------------------
+        try {
 
-        if (!socket.username) {
-            return;
-        }
+            // ==========================================
+            // KIỂM TRA USER ĐÃ ĐĂNG NHẬP CHƯA
+            // ==========================================
 
+            if (!socket.username) {
+                return;
+            }
 
-        // ------------------------------------------------
-        // 2. KIỂM TRA NGƯỜI GỬI
-        // ------------------------------------------------
+            // ==========================================
+            // KHÔNG CHO GIẢ MẠO senderUsername
+            // ==========================================
 
-        // Không tin username do client tự gửi
-        if (packet.senderUsername !== socket.username) {
+            if (packet.senderUsername !== socket.username) {
 
-            console.log(
-                'Blocked fake sender:',
-                packet.senderUsername,
-                'actual:',
-                socket.username
+                console.warn(
+                    `Fake sender detected from socket ${socket.id}`
+                );
+
+                return;
+            }
+
+            const receiverSocketId =
+                onlineUsers[packet.receiverUsername];
+
+            if (!receiverSocketId) {
+
+                socket.emit('message_send_error', {
+                    message:
+                        'Người nhận hiện không trực tuyến!'
+                });
+
+                return;
+            }
+
+            const sender = registeredUsers[socket.username];
+
+            if (!sender) {
+                return;
+            }
+
+            // ==========================================
+            // SERVER TỰ GẮN SIGN PUBLIC KEY
+            // ==========================================
+
+            const securePacket = {
+
+                senderUsername:
+                    packet.senderUsername,
+
+                receiverUsername:
+                    packet.receiverUsername,
+
+                encryptedContent:
+                    packet.encryptedContent,
+
+                encryptedAesKey:
+                    packet.encryptedAesKey,
+
+                iv:
+                    packet.iv,
+
+                signature:
+                    packet.signature,
+
+                // Không tin public key do client tự gửi
+                senderSignPubKey:
+                    sender.signPublicKey,
+
+                timestamp:
+                    packet.timestamp || Date.now()
+            };
+
+            io.to(receiverSocketId).emit(
+                'receive_secure_message',
+                securePacket
             );
 
-            return;
+        } catch (error) {
+
+            console.error(
+                'Send message error:',
+                error
+            );
         }
-
-
-        // ------------------------------------------------
-        // 3. Kiểm tra receiver
-        // ------------------------------------------------
-
-        const receiverUsername = packet.receiverUsername;
-
-        if (!receiverUsername) {
-            return;
-        }
-
-
-        // ------------------------------------------------
-        // 4. Lấy socket người nhận
-        // ------------------------------------------------
-
-        const receiverSocketId =
-            onlineUsers[receiverUsername];
-
-        if (!receiverSocketId) {
-            return;
-        }
-
-
-        // ------------------------------------------------
-        // 5. LẤY SIGNING PUBLIC KEY TỪ SERVER
-        // ------------------------------------------------
-
-        const senderUser =
-            registeredUsers[socket.username];
-
-        if (!senderUser) {
-            return;
-        }
-
-
-        // Không tin senderSignPubKey do client gửi
-        // Server tự lấy key đã đăng ký
-        const securePacket = {
-
-            senderUsername:
-                socket.username,
-
-            receiverUsername:
-                receiverUsername,
-
-            encryptedContent:
-                packet.encryptedContent,
-
-            encryptedAesKey:
-                packet.encryptedAesKey,
-
-            iv:
-                packet.iv,
-
-            signature:
-                packet.signature,
-
-            // Server tự gắn key đã đăng ký
-            senderSignPubKey:
-                senderUser.signPublicKey,
-
-            // Thời gian gửi
-            timestamp:
-                packet.timestamp || Date.now()
-        };
-
-
-        // ------------------------------------------------
-        // 6. Chuyển ciphertext cho người nhận
-        // ------------------------------------------------
-
-        io.to(receiverSocketId).emit(
-            'receive_secure_message',
-            securePacket
-        );
     });
 
-
-    // ==================================================
+    // ==========================================
     // ĐĂNG XUẤT
-    // ==================================================
+    // ==========================================
 
     socket.on('logout_account', () => {
 
@@ -367,26 +372,29 @@ io.on('connection', (socket) => {
 
             delete onlineUsers[socket.username];
 
+            console.log(
+                `User logout: ${socket.username}`
+            );
+
             io.emit(
                 'update_user_list',
                 Object.keys(onlineUsers)
-            );
-
-            console.log(
-                'User logged out:',
-                socket.username
             );
 
             socket.username = null;
         }
     });
 
-
-    // ==================================================
-    // NGẮT KẾT NỐI
-    // ==================================================
+    // ==========================================
+    // DISCONNECT
+    // ==========================================
 
     socket.on('disconnect', () => {
+
+        console.log(
+            'Client disconnected:',
+            socket.id
+        );
 
         if (
             socket.username &&
@@ -399,20 +407,13 @@ io.on('connection', (socket) => {
                 'update_user_list',
                 Object.keys(onlineUsers)
             );
-
-            console.log(
-                'User disconnected:',
-                socket.username
-            );
         }
     });
-
 });
 
-
-// ======================================================
-// CHẠY SERVER
-// ======================================================
+// ===============================
+// START SERVER
+// ===============================
 
 const PORT = process.env.PORT || 3000;
 
