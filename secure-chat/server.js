@@ -5,7 +5,11 @@ const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// Nâng giới hạn dung lượng nhận gói tin lên 50MB cho File/Ảnh mã hóa
+const io = new Server(server, {
+    maxHttpBufferSize: 50 * 1024 * 1024
+});
 
 app.use(express.static('public'));
 
@@ -224,6 +228,21 @@ io.on('connection', (socket) => {
     });
 
     // ==========================================
+    // TYPING INDICATOR
+    // ==========================================
+
+    socket.on('typing', (data) => {
+        if (!socket.username) return;
+        const receiverSocketId = onlineUsers[data.receiverUsername];
+        if (receiverSocketId) {
+            io.to(receiverSocketId).emit('user_typing', {
+                senderUsername: socket.username,
+                isTyping: data.isTyping
+            });
+        }
+    });
+
+    // ==========================================
     // GET PUBLIC KEY
     // ==========================================
 
@@ -320,6 +339,10 @@ io.on('connection', (socket) => {
 
                 const securePacket = {
 
+                    msgId:
+                        packet.msgId ||
+                        'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+
                     senderUsername:
                         socket.username,
 
@@ -341,16 +364,25 @@ io.on('connection', (socket) => {
                     senderSignPubKey:
                         sender.signPublicKey,
 
+                    ttl:
+                        packet.ttl || 0,
+
                     timestamp:
                         packet.timestamp ||
                         Date.now()
                 };
 
-                // Chỉ gửi cho receiver
+                // Gửi cho receiver
                 io.to(receiverSocketId).emit(
                     'receive_secure_message',
                     securePacket
                 );
+
+                // Phản hồi cho người gửi trạng thái "Đã nhận" (2 tích xám)
+                socket.emit('message_status_update', {
+                    msgId: securePacket.msgId,
+                    status: 'received'
+                });
 
             } catch (error) {
 
@@ -361,6 +393,21 @@ io.on('connection', (socket) => {
             }
         }
     );
+
+    // ==========================================
+    // MARK MESSAGE AS READ
+    // ==========================================
+
+    socket.on('mark_as_read', (data) => {
+        if (!socket.username) return;
+        const senderSocketId = onlineUsers[data.senderUsername];
+        if (senderSocketId) {
+            io.to(senderSocketId).emit('message_status_update', {
+                msgId: data.msgId,
+                status: 'read'
+            });
+        }
+    });
 
     // ==========================================
     // LOGOUT
@@ -424,7 +471,6 @@ io.on('connection', (socket) => {
     );
 
 });
-
 
 // ==========================================
 // START
