@@ -6,18 +6,23 @@ const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 
-// Hỗ trợ truyền File/Ảnh mã hóa lên đến 50MB
 const io = new Server(server, {
-    maxHttpBufferSize: 50 * 1024 * 1024
+    maxHttpBufferSize: 50 * 1024 * 1024 // Hỗ trợ gửi file/ảnh đến 50MB
 });
 
 app.use(express.static('public'));
 
-const registeredUsers = {};
-const onlineUsers = {};
+// CSDL Lưu trữ thông tin tài khoản và tin nhắn
+const registeredUsers = {}; // { username: { passwordHash, publicKey } }
+const messageStore = [];    // Danh sách lưu toàn bộ tin nhắn mã hóa
+const onlineUsers = {};     // Danh sách user đang online { username: socketId }
 
 function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function getChatKey(user1, user2) {
+    return [user1, user2].sort().join('::');
 }
 
 io.on('connection', (socket) => {
@@ -28,29 +33,32 @@ io.on('connection', (socket) => {
     // ==========================================
     socket.on('register_account', (data, callback) => {
         try {
-            const { username, password, publicKey, signPublicKey } = data;
+            const { username, password, publicKey } = data;
 
             if (!username || !password || !publicKey) {
                 return callback({ success: false, message: 'Vui lòng nhập đầy đủ thông tin!' });
             }
             if (username.length < 3) {
-                return callback({ success: false, message: 'Tên tài khoản phải có ít nhất 3 ký tự!' });
+                return callback({ success: false, message: 'Tên tài khoản phải từ 3 ký tự!' });
             }
             if (password.length < 4) {
-                return callback({ success: false, message: 'Mật khẩu phải có ít nhất 4 ký tự!' });
+                return callback({ success: false, message: 'Mật khẩu phải từ 4 ký tự!' });
             }
             if (registeredUsers[username]) {
                 return callback({ success: false, message: 'Tên tài khoản đã tồn tại!' });
             }
 
+            // Lưu tài khoản & khóa
             registeredUsers[username] = {
                 passwordHash: hashPassword(password),
-                publicKey: publicKey,
-                signPublicKey: signPublicKey || publicKey
+                publicKey: publicKey
             };
 
-            console.log(`Registered: ${username}`);
-            callback({ success: true, message: 'Đăng ký thành công! Vui lòng đăng nhập.' });
+            console.log(`Registered successfully: ${username}`);
+            callback({ 
+                success: true, 
+                message: 'Đăng ký thành công! Đang chuyển sang màn hình đăng nhập...' 
+            });
         } catch (error) {
             console.error(error);
             callback({ success: false, message: 'Có lỗi xảy ra khi đăng ký!' });
@@ -58,11 +66,11 @@ io.on('connection', (socket) => {
     });
 
     // ==========================================
-    // ĐĂNG NHẬP
+    // ĐĂNG NHẬP & TẢI LẠI LỊCH SỬ TIN NHẮN
     // ==========================================
     socket.on('login_account', (data, callback) => {
         try {
-            const { username, password, publicKey, signPublicKey } = data;
+            const { username, password, publicKey } = data;
             const user = registeredUsers[username];
 
             if (!user) {
@@ -72,11 +80,10 @@ io.on('connection', (socket) => {
                 return callback({ success: false, message: 'Mật khẩu không đúng!' });
             }
 
-            // Luôn cập nhật Public Key mới nhất của phiên này
+            // Cập nhật Public Key phiên mới
             user.publicKey = publicKey;
-            user.signPublicKey = signPublicKey || publicKey;
 
-            // Xử lý nếu tài khoản đang đăng nhập ở nơi khác
+            // Xử lý nếu tài khoản đang online ở tab/thiết bị khác
             if (onlineUsers[username]) {
                 const oldSocketId = onlineUsers[username];
                 const oldSocket = io.sockets.sockets.get(oldSocketId);
@@ -89,8 +96,19 @@ io.on('connection', (socket) => {
             onlineUsers[username] = socket.id;
             socket.username = username;
 
-            console.log(`Login: ${username}`);
-            callback({ success: true, message: 'Đăng nhập thành công!' });
+            console.log(`Login successful: ${username}`);
+
+            // Lấy toàn bộ lịch sử tin nhắn liên quan tới user này
+            const userHistory = messageStore.filter(
+                m => m.senderUsername === username || m.receiverUsername === username
+            );
+
+            callback({
+                success: true,
+                message: 'Đăng nhập thành công!',
+                history: userHistory
+            });
+
             io.emit('update_user_list', Object.keys(onlineUsers));
         } catch (error) {
             console.error(error);
@@ -129,13 +147,12 @@ io.on('connection', (socket) => {
         }
         callback({
             success: true,
-            publicKey: user.publicKey,
-            signPublicKey: user.signPublicKey
+            publicKey: user.publicKey
         });
     });
 
     // ==========================================
-    // GỬI TIN NHẮN
+    // GỬI & LƯU TIN NHẮN
     // ==========================================
     socket.on('send_secure_message', (packet) => {
         try {
@@ -143,10 +160,6 @@ io.on('connection', (socket) => {
 
             const receiver = packet.receiverUsername;
             const receiverSocketId = onlineUsers[receiver];
-
-            if (!receiverSocketId) {
-                return socket.emit('message_send_error', { message: 'Người nhận hiện không trực tuyến!' });
-            }
 
             const securePacket = {
                 msgId: packet.msgId || ('msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)),
@@ -160,15 +173,21 @@ io.on('connection', (socket) => {
                 ttl: packet.ttl || 0
             };
 
-            io.to(receiverSocketId).emit('receive_secure_message', securePacket);
-            socket.emit('message_status_update', { msgId: securePacket.msgId, status: 'received' });
+            // 1. Lưu vào CSDL Server để khôi phục khi đăng nhập lại
+            messageStore.push(securePacket);
+
+            // 2. Gửi realtime cho người nhận nếu đang online
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit('receive_secure_message', securePacket);
+                socket.emit('message_status_update', { msgId: securePacket.msgId, status: 'received' });
+            }
         } catch (error) {
             console.error('Send message error:', error);
         }
     });
 
     // ==========================================
-    // XÁC NHẬN ĐÃ ĐỌC TIN NHẮN
+    // ĐÃ ĐỌC TIN NHẮN
     // ==========================================
     socket.on('mark_as_read', (data) => {
         if (!socket.username) return;
@@ -179,7 +198,7 @@ io.on('connection', (socket) => {
     });
 
     // ==========================================
-    // DĂNG XUẤT / NGẮT KẾT NỐI
+    // ĐĂNG XUẤT
     // ==========================================
     socket.on('logout_account', () => {
         if (socket.username && onlineUsers[socket.username] === socket.id) {
