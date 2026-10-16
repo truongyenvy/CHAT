@@ -121,7 +121,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .message-text { white-space: pre-wrap; word-break: break-word; font-size: 14.5px; line-height: 1.5; }
 .message-action { margin-top: 8px; font-size: 11px; color: #93c5fd; cursor: pointer; display: inline-block; padding: 3px 8px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; }
 
-/* UI PRO CONTROLS MỚI */
 .pro-controls {
     display: flex; gap: 10px; align-items: center; margin-bottom: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -221,7 +220,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
                 <div class="typing-indicator" id="typingIndicator"></div>
 
-                <!-- THANH TÙY CHỌN TỆP & TỰ HỦY GỌN ĐẸP -->
+                <!-- THANH TÙY CHỌN TỆP & TỰ HỦY -->
                 <div class="pro-controls">
                     <select id="ttlSelect" class="ttl-picker">
                         <option value="0">⏳ Tự hủy: Tắt</option>
@@ -266,13 +265,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 </div>
 
 <script>
-const socket=io();let currentUsername=null,isRegisterMode=!1,rsaKeyPair=null,db=null,dbReady=!1,currentChatUser=null,typingTimeout=null;
-const dbRequest=indexedDB.open("SecureChatDB",8);
-dbRequest.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains("messages")||t.createObjectStore("messages",{keyPath:"msgId"}).createIndex("chatKey","chatKey",{unique:!1}),t.objectStoreNames.contains("keys")||t.createObjectStore("keys",{keyPath:"id"})};
-dbRequest.onsuccess=e=>{db=e.target.result,dbReady=!0,console.log("IndexedDB ready.")};
-dbRequest.onerror=e=>{console.error(e.target.error),alert("Không thể mở IndexedDB!")};
+const socket=io();
+let currentUsername=null, isRegisterMode=!1, rsaKeyPair=null, currentChatUser=null, typingTimeout=null;
 
-function waitForDatabase(){return new Promise(e=>{if(dbReady)return void e();const t=setInterval(()=>{dbReady&&(clearInterval(t),e())},100)})}
+// BỘ NHỚ RAM TẠM THỜI CHO PHIÊN LÀM VIỆC (THOÁT LÀ MẤT HẲN)
+let activeMessagesMemory = [];
+
 function arrayBufferToBase64(e){let t="";const n=new Uint8Array(e),r=32768;for(let s=0;s<n.length;s+=r)t+=String.fromCharCode(...n.subarray(s,Math.min(s+r,n.length)));return btoa(t)}
 function base64ToArrayBuffer(e){const t=atob(e),n=new Uint8Array(t.length);for(let r=0;r<t.length;r++)n[r]=t.charCodeAt(r);return n.buffer}
 
@@ -280,8 +278,6 @@ async function sha256Hex(buffer){const hashBuffer=await crypto.subtle.digest("SH
 
 async function generateKeys(){rsaKeyPair=await crypto.subtle.generateKey({name:"RSA-OAEP",modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:"SHA-256"},!0,["encrypt","decrypt"])}
 async function exportPublicKey(e){return arrayBufferToBase64(await crypto.subtle.exportKey("spki",e))}
-
-async function saveKeys(){await waitForDatabase();return new Promise((e,t)=>{const n=db.transaction(["keys"],"readwrite");n.objectStore("keys").put({id:"myKeys",rsaPublicKey:rsaKeyPair.publicKey,rsaPrivateKey:rsaKeyPair.privateKey}),n.oncomplete=()=>e(),n.onerror=()=>t(n.error)})}
 
 function updateFileName(input) {
     const display = document.getElementById("fileNameDisplay");
@@ -298,7 +294,6 @@ async function handleAuth(){
     const status = document.getElementById("authStatus");
 
     if (!username || !password) return void(status.textContent = "Vui lòng nhập đầy đủ thông tin!");
-    await waitForDatabase();
 
     try {
         status.textContent = "Đang khởi tạo khóa...";
@@ -308,7 +303,6 @@ async function handleAuth(){
         if (isRegisterMode) {
             socket.emit("register_account", { username, password, publicKey: r }, async t => {
                 if (!t.success) return void(status.textContent = t.message);
-                await saveKeys();
                 isRegisterMode = false;
                 document.getElementById("authButton").textContent = "Đăng nhập";
                 document.getElementById("switchText").textContent = "Chưa có tài khoản? Đăng ký";
@@ -318,35 +312,14 @@ async function handleAuth(){
         } else {
             socket.emit("login_account", { username, password, publicKey: r }, async t => {
                 if (!t.success) return void(status.textContent = t.message);
-                await saveKeys();
                 currentUsername = username;
+                
+                // MỖI LẦN ĐĂNG NHẬP MỚI -> XÓA SẠCH LỊCH SỬ TIN NHẮN TẠM THỜI
+                activeMessagesMemory = [];
+
                 document.getElementById("currentUser").textContent = username;
                 document.getElementById("authScreen").style.display = "none";
                 document.getElementById("chatScreen").style.display = "block";
-
-                // ĐỒNG BỘ LỊCH SỬ THÔNG MINH - SỬA LỖI [TIN NHẮN CŨ]
-                if (t.history && t.history.length > 0) {
-                    for (const msgPacket of t.history) {
-                        try {
-                            if (msgPacket.senderUsername !== currentUsername) {
-                                // Giải mã tin nhắn từ đối phương
-                                const decAes = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToArrayBuffer(msgPacket.encryptedAesKey));
-                                const aesK = await crypto.subtle.importKey("raw", decAes, { name: "AES-GCM" }, !1, ["decrypt"]);
-                                const decBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(msgPacket.iv)) }, aesK, base64ToArrayBuffer(msgPacket.encryptedContent));
-                                const payloadStr = (new TextEncoder()).decode(decBuf);
-                                const payloadObj = JSON.parse(payloadStr);
-
-                                saveMessageLocally({
-                                    ...msgPacket,
-                                    text: payloadObj.text,
-                                    fileDataB64: payloadObj.fileDataB64,
-                                    fileName: payloadObj.fileName,
-                                    fileType: payloadObj.fileType
-                                });
-                            }
-                        } catch (err) { console.log("Skip decrypt history:", err); }
-                    }
-                }
                 socket.emit("request_user_list");
             });
         }
@@ -361,33 +334,249 @@ socket.on("user_typing",e=>{const t=document.getElementById("typingIndicator");t
 
 socket.on("update_user_list",e=>{const t=document.getElementById("receiverSelect"),n=t.value;t.innerHTML="";const r=document.createElement("option");r.value="",r.textContent="-- Chọn người nhận --",t.appendChild(r),e.forEach(e=>{if(e===currentUsername)return;const n=document.createElement("option");n.value=e,n.textContent=e,t.appendChild(n)}),e.includes(n)&&(t.value=n)});
 
-async function changeChat(){const e=document.getElementById("receiverSelect").value;currentChatUser=e||null;const t=document.getElementById("chatBox");if(t.innerHTML="",document.getElementById("typingIndicator").innerText="",!e){document.getElementById("chatTitle").textContent="Chưa chọn người chat",document.getElementById("chatSubtitle").textContent="Chọn một người để bắt đầu chat riêng";const e=document.createElement("div");return e.className="empty-message",e.textContent="Chọn người nhận để bắt đầu.",void t.appendChild(e)}document.getElementById("chatTitle").textContent="Chat riêng với "+e,document.getElementById("chatSubtitle").textContent="🔒 Tin nhắn được mã hóa End-to-End",await loadPrivateChat(e)}
+async function changeChat(){
+    const e=document.getElementById("receiverSelect").value;
+    currentChatUser=e||null;
+    const t=document.getElementById("chatBox");
+    t.innerHTML="";
+    document.getElementById("typingIndicator").innerText="";
 
-function createChatKey(e,t){return[e,t].sort().join("::")}
-function saveMessageLocally(e){if(!dbReady)return;const t=createChatKey(e.senderUsername,e.receiverUsername);db.transaction(["messages"],"readwrite").objectStore("messages").put({...e,chatKey:t})}
-function removeFromDatabase(e){if(!dbReady)return;db.transaction(["messages"],"readwrite").objectStore("messages").delete(e)}
+    if(!e){
+        document.getElementById("chatTitle").textContent="Chưa chọn người chat";
+        document.getElementById("chatSubtitle").textContent="Chọn một người để bắt đầu chat riêng";
+        const empty=document.createElement("div");
+        empty.className="empty-message";
+        empty.textContent="Chọn người nhận để bắt đầu.";
+        return void t.appendChild(empty);
+    }
 
-async function loadPrivateChat(e){await waitForDatabase();const t=createChatKey(currentUsername,e),n=db.transaction(["messages"],"readonly").objectStore("messages").index("chatKey").getAll(t);n.onsuccess=function(){const t=n.result;t.sort((e,t)=>e.timestamp-t.timestamp);const r=document.getElementById("chatBox");if(r.innerHTML="",0===t.length){const t=document.createElement("div");return t.className="empty-message",t.textContent="Chưa có tin nhắn với "+e+".",void r.appendChild(t)}t.forEach(e=>{renderMessageToUI(e)})}}
+    document.getElementById("chatTitle").textContent="Chat riêng với "+e;
+    document.getElementById("chatSubtitle").textContent="🔒 Tin nhắn được mã hóa End-to-End";
+    
+    // NẠP LẠI TIN NHẮN TRONG PHIÊN NÀY TỪ RAM TẠM THỜI
+    loadChatFromMemory(e);
+}
 
-async function sendMessage(){if(!currentUsername)return;if(!currentChatUser)return void alert("Hãy chọn người muốn chat!");const e=document.getElementById("messageInput"),t=e.value.trim(),n=document.getElementById("fileInput"),r=n.files[0],s=parseInt(document.getElementById("ttlSelect").value);if(!t&&!r)return;const o=document.getElementById("sendButton");o.disabled=!0;try{socket.emit("get_public_key",currentChatUser,async a=>{if(!a.success)return alert(a.message),void(o.disabled=!1);try{let c=null,i=null,u=null;if(r){const e=await r.arrayBuffer();c=arrayBufferToBase64(e),i=r.name,u=r.type}const l={text:t,fileDataB64:c,fileName:i,fileType:u,ttl:s},payloadText=JSON.stringify(l),d=(new TextEncoder).encode(payloadText),m=await sha256Hex(d),y="msg_"+Date.now()+"_"+Math.random().toString(36).substr(2,5),g=await crypto.subtle.importKey("spki",base64ToArrayBuffer(a.publicKey),{name:"RSA-OAEP",hash:"SHA-256"},!1,["encrypt"]),h=await crypto.subtle.generateKey({name:"AES-GCM",length:256},!0,["encrypt","decrypt"]),f=crypto.getRandomValues(new Uint8Array(12)),k=await crypto.subtle.encrypt({name:"AES-GCM",iv:f},h,d),v=await crypto.subtle.exportKey("raw",h),M=await crypto.subtle.encrypt({name:"RSA-OAEP"},g,v),S={msgId:y,senderUsername:currentUsername,receiverUsername:currentChatUser,encryptedContent:arrayBufferToBase64(k),encryptedAesKey:arrayBufferToBase64(M),iv:arrayBufferToBase64(f.buffer),timestamp:Date.now(),hash:m,ttl:s};socket.emit("send_secure_message",S);
-// LƯU TRỰC TIẾP PLAINTEXT VÀO INDEXEDDB CỦA NGUỜI GỬI DỂ KHÔNG BỊ LỖI TIN NHẮN CỦ
-const B={...S,text:t,fileDataB64:c,fileName:i,fileType:u,status:"sent"};saveMessageLocally(B),renderMessageToUI(B),e.value="",n.value="",document.getElementById("fileNameDisplay").textContent=""}catch(c){console.error(c),alert("Không thể mã hóa tin nhắn!")}finally{o.disabled=!1}})}catch(a){console.error(a),o.disabled=!1}}
+function loadChatFromMemory(otherUser) {
+    const chatBox = document.getElementById("chatBox");
+    chatBox.innerHTML = "";
+    
+    const relevantMsgs = activeMessagesMemory.filter(
+        m => (m.senderUsername === currentUsername && m.receiverUsername === otherUser) ||
+             (m.senderUsername === otherUser && m.receiverUsername === currentUsername)
+    );
 
-socket.on("receive_secure_message",async e=>{try{const t=await crypto.subtle.decrypt({name:"RSA-OAEP"},rsaKeyPair.privateKey,base64ToArrayBuffer(e.encryptedAesKey)),n=await crypto.subtle.importKey("raw",t,{name:"AES-GCM"},!1,["decrypt"]),r=await crypto.subtle.decrypt({name:"AES-GCM",iv:new Uint8Array(base64ToArrayBuffer(e.iv))},n,base64ToArrayBuffer(e.encryptedContent)),s=(new TextDecoder).decode(r),o=JSON.parse(s);const u={msgId:e.msgId,senderUsername:e.senderUsername,receiverUsername:e.receiverUsername,text:o.text,fileDataB64:o.fileDataB64,fileName:o.fileName,fileType:o.fileType,timestamp:e.timestamp,encryptedContent:e.encryptedContent,encryptedAesKey:e.encryptedAesKey,iv:e.iv,hash:e.hash,ttl:e.ttl};saveMessageLocally(u),socket.emit("mark_as_read",{msgId:e.msgId,senderUsername:e.senderUsername}),currentChatUser===e.senderUsername&&renderMessageToUI(u),e.ttl>0&&setTimeout(()=>{const t=document.getElementById(e.msgId);t&&t.remove(),removeFromDatabase(e.msgId)},1000*e.ttl)}catch(t){console.error("Decrypt error:",t),renderWarning("⚠️ Không thể giải mã tin nhắn.")}});
+    if (relevantMsgs.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty-message";
+        empty.textContent = "Chưa có tin nhắn nào trong phiên này với " + otherUser + ".";
+        chatBox.appendChild(empty);
+        return;
+    }
 
-socket.on("message_status_update",e=>{const t=document.getElementById(`tick_${e.msgId}`);t&&("received"===e.status?t.innerText="✓✓":"read"===e.status&&(t.innerText="✓✓",t.classList.add("read")))});
+    relevantMsgs.forEach(m => renderMessageToUI(m));
+}
 
-function renderMessageToUI(e){const t=e.senderUsername===currentUsername?e.receiverUsername:e.senderUsername;if(currentChatUser&&t!==currentChatUser)return;const n=document.getElementById("chatBox"),r=n.querySelector(".empty-message");r&&r.remove();const s=document.createElement("div"),o=e.senderUsername===currentUsername;s.className="message"+(o?" mine":""),s.id=e.msgId;const a=document.createElement("div");a.className="message-content";const c=document.createElement("div");c.className="message-info";const i=new Date(e.timestamp),u=o?`<span id="tick_${e.msgId}" class="status-tick ${"read"===e.status?"read":""}">${"sent"===e.status?"✓":"✓✓"}</span>`:"";c.innerHTML=`<span>${e.senderUsername} • ${i.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}${e.ttl>0?` 🔥(${e.ttl}s)`:""}</span>${u}`;const l=document.createElement("div");l.className="message-text";let d=`<div>${e.text||""}</div>`;e.fileDataB64&&(d+=e.fileType&&e.fileType.startsWith("image/")?`<br><img src="data:${e.fileType};base64,${e.fileDataB64}" class="media-preview"/>`:`<br><a href="data:${e.fileType};base64,${e.fileDataB64}" download="${e.fileName}" class="download-btn">📎 Tải về: ${e.fileName}</a>`),l.innerHTML=d;const m=document.createElement("div");m.className="message-action",m.textContent="🔐 Xem dữ liệu mã hóa",m.onclick=()=>{showEncryptionData(e)},a.appendChild(c),a.appendChild(l),a.appendChild(m),s.appendChild(a),n.appendChild(s),n.scrollTop=n.scrollHeight}
+async function sendMessage(){
+    if (!currentUsername) return;
+    if (!currentChatUser) return void alert("Hãy chọn người muốn chat!");
 
-function showEncryptionData(e){document.getElementById("cryptoContent").textContent=e.encryptedContent||"Không có dữ liệu",document.getElementById("cryptoAesKey").textContent=e.encryptedAesKey||"Không có dữ liệu",document.getElementById("cryptoIv").textContent=e.iv||"Không có dữ liệu",document.getElementById("cryptoHash").textContent=e.hash||"Không có dữ liệu",document.getElementById("cryptoSender").textContent=e.senderUsername||"Không có dữ liệu",document.getElementById("cryptoReceiver").textContent=e.receiverUsername||"Không có dữ liệu",document.getElementById("cryptoStatus").textContent="✓ Tin nhắn đã được mã hóa AES-256-GCM, AES Key được bảo vệ bằng RSA-OAEP và nội dung được kiểm tra bằng SHA-256.",document.getElementById("cryptoModal").style.display="flex"}
+    const e = document.getElementById("messageInput"), t = e.value.trim(), n = document.getElementById("fileInput"), r = n.files[0], s = parseInt(document.getElementById("ttlSelect").value);
+    if (!t && !r) return;
 
-function closeCryptoModal(){document.getElementById("cryptoModal").style.display="none"}
-function closeModalOutside(e){"cryptoModal"===e.target.id&&closeCryptoModal()}
-function renderWarning(e){const t=document.getElementById("chatBox"),n=document.createElement("div");n.style.color="#fca5a5",n.style.textAlign="center",n.style.padding="10px",n.textContent=e,t.appendChild(n),t.scrollTop=t.scrollHeight}
-function handleEnter(e){"Enter"===e.key&&(e.preventDefault(),sendMessage())}
+    const o = document.getElementById("sendButton");
+    o.disabled = !0;
 
-function logout(){socket.emit("logout_account"),currentUsername=null,currentChatUser=null,rsaKeyPair=null,document.getElementById("chatScreen").style.display="none",document.getElementById("authScreen").style.display="block",document.getElementById("password").value="",document.getElementById("authStatus").textContent="Đã đăng xuất."}
-socket.on("force_logout",e=>{alert(e.message),logout()}),socket.on("message_send_error",e=>{alert(e.message)});
+    try {
+        socket.emit("get_public_key", currentChatUser, async a => {
+            if (!a.success) return alert(a.message), void(o.disabled = !0);
+            try {
+                let c = null, i = null, u = null;
+                if (r) {
+                    const e = await r.arrayBuffer();
+                    c = arrayBufferToBase64(e); i = r.name; u = r.type;
+                }
+
+                const l = { text: t, fileDataB64: c, fileName: i, fileType: u, ttl: s };
+                const payloadText = JSON.stringify(l);
+                const d = (new TextEncoder).encode(payloadText);
+                const m = await sha256Hex(d);
+                const y = "msg_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5);
+
+                const g = await crypto.subtle.importKey("spki", base64ToArrayBuffer(a.publicKey), { name: "RSA-OAEP", hash: "SHA-256" }, !1, ["encrypt"]);
+                const h = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, !0, ["encrypt", "decrypt"]);
+                const f = crypto.getRandomValues(new Uint8Array(12));
+                const k = await crypto.subtle.encrypt({ name: "AES-GCM", iv: f }, h, d);
+                const v = await crypto.subtle.exportKey("raw", h);
+                const M = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, g, v);
+
+                const S = {
+                    msgId: y,
+                    senderUsername: currentUsername,
+                    receiverUsername: currentChatUser,
+                    encryptedContent: arrayBufferToBase64(k),
+                    encryptedAesKey: arrayBufferToBase64(M),
+                    iv: arrayBufferToBase64(f.buffer),
+                    timestamp: Date.now(),
+                    hash: m,
+                    ttl: s
+                };
+
+                socket.emit("send_secure_message", S);
+
+                const B = { ...S, text: t, fileDataB64: c, fileName: i, fileType: u, status: "sent" };
+                
+                // LƯU VÀO RAM PHIÊN LÀM VIỆC NÀY
+                activeMessagesMemory.push(B);
+                renderMessageToUI(B);
+
+                e.value = ""; n.value = "";
+                document.getElementById("fileNameDisplay").textContent = "";
+            } catch (c) {
+                console.error(c);
+                alert("Không thể mã hóa tin nhắn!");
+            } finally {
+                o.disabled = !1;
+            }
+        });
+    } catch (a) {
+        console.error(a);
+        o.disabled = !1;
+    }
+}
+
+socket.on("receive_secure_message", async e => {
+    try {
+        const t = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToArrayBuffer(e.encryptedAesKey));
+        const n = await crypto.subtle.importKey("raw", t, { name: "AES-GCM" }, !1, ["decrypt"]);
+        const r = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(e.iv)) }, n, base64ToArrayBuffer(e.encryptedContent));
+        const s = (new TextDecoder).decode(r);
+        const o = JSON.parse(s);
+
+        const u = {
+            msgId: e.msgId,
+            senderUsername: e.senderUsername,
+            receiverUsername: e.receiverUsername,
+            text: o.text,
+            fileDataB64: o.fileDataB64,
+            fileName: o.fileName,
+            fileType: o.fileType,
+            timestamp: e.timestamp,
+            encryptedContent: e.encryptedContent,
+            encryptedAesKey: e.encryptedAesKey,
+            iv: e.iv,
+            hash: e.hash,
+            ttl: e.ttl
+        };
+
+        // LƯU TẠM THỜI VÀO PHIÊN HIỆN TẠI
+        activeMessagesMemory.push(u);
+        socket.emit("mark_as_read", { msgId: e.msgId, senderUsername: e.senderUsername });
+
+        if (currentChatUser === e.senderUsername) {
+            renderMessageToUI(u);
+        }
+
+        if (e.ttl > 0) {
+            setTimeout(() => {
+                const t = document.getElementById(e.msgId);
+                t && t.remove();
+                activeMessagesMemory = activeMessagesMemory.filter(m => m.msgId !== e.msgId);
+            }, 1000 * e.ttl);
+        }
+    } catch (t) {
+        console.error("Decrypt error:", t);
+        renderWarning("⚠️ Không thể giải mã tin nhắn.");
+    }
+});
+
+socket.on("message_status_update", e => {
+    const t = document.getElementById(`tick_${e.msgId}`);
+    t && ("received" === e.status ? t.innerText = "✓✓" : "read" === e.status && (t.innerText = "✓✓", t.classList.add("read")));
+});
+
+function renderMessageToUI(e) {
+    const t = e.senderUsername === currentUsername ? e.receiverUsername : e.senderUsername;
+    if (currentChatUser && t !== currentChatUser) return;
+
+    const n = document.getElementById("chatBox");
+    const r = n.querySelector(".empty-message");
+    r && r.remove();
+
+    const s = document.createElement("div");
+    const o = e.senderUsername === currentUsername;
+    s.className = "message" + (o ? " mine" : "");
+    s.id = e.msgId;
+
+    const a = document.createElement("div");
+    a.className = "message-content";
+
+    const c = document.createElement("div");
+    c.className = "message-info";
+    const i = new Date(e.timestamp);
+    const u = o ? `<span id="tick_${e.msgId}" class="status-tick ${"read" === e.status ? "read" : ""}">${"sent" === e.status ? "✓" : "✓✓"}</span>` : "";
+    c.innerHTML = `<span>${e.senderUsername} • ${i.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}${e.ttl > 0 ? ` 🔥(${e.ttl}s)` : ""}</span>${u}`;
+
+    const l = document.createElement("div");
+    l.className = "message-text";
+    let d = `<div>${e.text || ""}</div>`;
+    
+    if (e.fileDataB64) {
+        d += e.fileType && e.fileType.startsWith("image/") 
+            ? `<br><img src="data:${e.fileType};base64,${e.fileDataB64}" class="media-preview"/>` 
+            : `<br><a href="data:${e.fileType};base64,${e.fileDataB64}" download="${e.fileName}" class="download-btn">📎 Tải về: ${e.fileName}</a>`;
+    }
+    l.innerHTML = d;
+
+    const m = document.createElement("div");
+    m.className = "message-action";
+    m.textContent = "🔐 Xem dữ liệu mã hóa";
+    m.onclick = () => { showEncryptionData(e) };
+
+    a.appendChild(c); a.appendChild(l); a.appendChild(m);
+    s.appendChild(a); n.appendChild(s);
+    n.scrollTop = n.scrollHeight;
+}
+
+function showEncryptionData(e){
+    document.getElementById("cryptoContent").textContent = e.encryptedContent || "Không có dữ liệu";
+    document.getElementById("cryptoAesKey").textContent = e.encryptedAesKey || "Không có dữ liệu";
+    document.getElementById("cryptoIv").textContent = e.iv || "Không có dữ liệu";
+    document.getElementById("cryptoHash").textContent = e.hash || "Không có dữ liệu";
+    document.getElementById("cryptoSender").textContent = e.senderUsername || "Không có dữ liệu";
+    document.getElementById("cryptoReceiver").textContent = e.receiverUsername || "Không có dữ liệu";
+    document.getElementById("cryptoStatus").textContent = "✓ Tin nhắn đã được mã hóa AES-256-GCM, AES Key được bảo vệ bằng RSA-OAEP và nội dung được kiểm tra bằng SHA-256.";
+    document.getElementById("cryptoModal").style.display = "flex";
+}
+
+function closeCryptoModal(){ document.getElementById("cryptoModal").style.display = "none"; }
+function closeModalOutside(e){ "cryptoModal" === e.target.id && closeCryptoModal(); }
+
+function renderWarning(e){
+    const t = document.getElementById("chatBox"), n = document.createElement("div");
+    n.style.color = "#fca5a5"; n.style.textAlign = "center"; n.style.padding = "10px";
+    n.textContent = e; t.appendChild(n); t.scrollTop = t.scrollHeight;
+}
+
+function handleEnter(e){ "Enter" === e.key && (e.preventDefault(), sendMessage()); }
+
+function logout(){
+    socket.emit("logout_account");
+    currentUsername = null;
+    currentChatUser = null;
+    rsaKeyPair = null;
+    
+    // TỰ ĐỘNG XÓA SẠCH TIN NHẮN TRONG BỘ NHỚ KHI ĐĂNG XUẤT
+    activeMessagesMemory = [];
+
+    document.getElementById("chatScreen").style.display = "none";
+    document.getElementById("authScreen").style.display = "block";
+    document.getElementById("password").value = "";
+    document.getElementById("authStatus").textContent = "Đã đăng xuất. Lịch sử trò chuyện đã được xóa bảo mật.";
+}
+
+socket.on("force_logout", e => { alert(e.message); logout(); });
+socket.on("message_send_error", e => { alert(e.message); });
 </script>
 </body>
 </html>
