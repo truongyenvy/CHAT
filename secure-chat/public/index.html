@@ -5,84 +5,595 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Secure Web Chat Pro</title>
 <script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#0f172a,#1e293b,#111827);color:white;display:flex;align-items:center;justify-content:center}.card{width:95%;max-width:1100px;min-height:650px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(20px);border-radius:20px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,0.4)}h1{text-align:center;margin-top:0;margin-bottom:8px}.subtitle{text-align:center;color:#cbd5e1;margin-bottom:30px}#authScreen{max-width:450px;margin:auto}.input-group{margin-bottom:18px}label{display:block;margin-bottom:7px;color:#cbd5e1}input,select{width:100%;padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.25);color:white;outline:none;font-size:15px}select option{background:#1e293b;color:white}button{border:none;border-radius:10px;padding:13px 18px;background:#2563eb;color:white;cursor:pointer;font-size:15px;transition:0.2s}button:hover{background:#1d4ed8}button:disabled{opacity:0.5;cursor:not-allowed}.auth-button{width:100%}.switch-auth{text-align:center;margin-top:20px;color:#cbd5e1}.switch-auth span{color:#60a5fa;cursor:pointer;font-weight:bold}.status{margin-top:15px;text-align:center;color:#93c5fd}#chatScreen{display:none}.chat-layout{display:grid;grid-template-columns:230px 1fr;gap:20px;min-height:500px}.sidebar{background:rgba(0,0,0,0.2);border-radius:15px;padding:18px}.sidebar h3{margin-top:0}.user-status{color:#86efac;font-size:13px;margin-bottom:20px}.logout-button{width:100%;background:#dc2626;margin-top:20px}.logout-button:hover{background:#b91c1c}.chat-area{display:flex;flex-direction:column;background:rgba(0,0,0,0.15);border-radius:15px;padding:18px}.chat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.1)}.chat-title{font-size:18px;font-weight:bold}.chat-subtitle{font-size:12px;color:#94a3b8;margin-top:4px}.chat-box{flex:1;min-height:350px;max-height:400px;overflow-y:auto;padding:15px;background:rgba(0,0,0,0.2);border-radius:12px;margin-bottom:8px}.empty-message{text-align:center;color:#94a3b8;margin-top:100px}.message{margin-bottom:14px;display:flex}.message.mine{justify-content:flex-end}.message-content{max-width:75%;padding:10px 14px;border-radius:12px;background:#334155;cursor:pointer}.message.mine .message-content{background:#2563eb}.message-content:hover{filter:brightness(1.1)}.message-info{font-size:11px;opacity:0.75;margin-bottom:4px;display:flex;justify-content:space-between;gap:10px}.status-tick{font-weight:bold}.status-tick.read{color:#38bdf8}.message-text{white-space:pre-wrap;word-break:break-word}.message-action{margin-top:8px;font-size:11px;color:#bfdbfe;cursor:pointer}.message-action:hover{text-decoration:underline}.pro-options{display:flex;gap:10px;margin-bottom:10px}.pro-options select,.pro-options input{padding:8px 12px;font-size:13px}.typing-indicator{font-size:12px;color:#60a5fa;font-style:italic;height:16px;margin-bottom:6px}.media-preview{max-width:100%;max-height:160px;border-radius:8px;margin-top:6px;border:1px solid rgba(255,255,255,0.2)}.download-btn{display:inline-block;margin-top:6px;color:#60a5fa;text-decoration:underline;font-size:12px}.message-input-area{display:flex;gap:10px}.message-input-area input{flex:1}.security-badge{text-align:center;margin-top:15px;padding:10px;border-radius:10px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:#86efac;font-size:12px}.modal{display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:20px}.modal-content{width:95%;max-width:850px;max-height:90vh;overflow-y:auto;background:#0f172a;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:25px;box-shadow:0 20px 60px rgba(0,0,0,0.5)}.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.modal-header h2{margin:0}.close-button{background:#dc2626;padding:8px 13px}.crypto-section{margin-bottom:18px}.crypto-section h3{font-size:14px;color:#93c5fd;margin-bottom:7px}.crypto-value{background:rgba(0,0,0,0.35);border-radius:8px;padding:12px;font-family:Consolas,monospace;font-size:12px;line-height:1.5;word-break:break-all;max-height:130px;overflow-y:auto;color:#cbd5e1}.crypto-status{padding:12px;border-radius:8px;background:rgba(34,197,94,0.1);color:#86efac;margin-bottom:20px}@media (max-width:700px){.card{width:100%;min-height:100vh;border-radius:0;padding:20px}.chat-layout{grid-template-columns:1fr}.message-content{max-width:85%}}
+* {
+    box-sizing: border-box;
+    transition: all 0.25s ease;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: radial-gradient(circle at 15% 15%, #1e1b4b 0%, #0f172a 40%, #020617 100%);
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+}
+
+/* Background Glowing Orbs */
+body::before, body::after {
+    content: '';
+    position: absolute;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    filter: blur(100px);
+    z-index: -1;
+    opacity: 0.5;
+    animation: float 10s infinite alternate ease-in-out;
+}
+body::before {
+    background: #4f46e5;
+    top: 10%;
+    left: 10%;
+}
+body::after {
+    background: #06b6d4;
+    bottom: 10%;
+    right: 10%;
+}
+
+@keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, -30px) scale(1.1); }
+}
+
+.card {
+    width: 95%;
+    max-width: 1150px;
+    min-height: 680px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+h1 {
+    text-align: center;
+    margin: 0 0 6px 0;
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 28px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* ================= AUTH ================= */
+#authScreen {
+    max-width: 420px;
+    margin: 40px auto;
+    padding: 30px;
+    background: rgba(30, 41, 59, 0.4);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+input, select {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.6);
+    color: #fff;
+    outline: none;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+input:focus, select:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+select option {
+    background: #0f172a;
+    color: #fff;
+}
+
+button {
+    border: none;
+    border-radius: 12px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #4f46e5, #3b82f6);
+    color: white;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(79, 70, 229, 0.5);
+    filter: brightness(1.1);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.auth-button { width: 100%; }
+
+.switch-auth {
+    text-align: center;
+    margin-top: 22px;
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.switch-auth span {
+    color: #38bdf8;
+    cursor: pointer;
+    font-weight: 600;
+}
+.switch-auth span:hover { text-decoration: underline; }
+
+.status {
+    margin-top: 18px;
+    text-align: center;
+    color: #a5f3fc;
+    font-size: 13px;
+}
+
+/* ================= CHAT ================= */
+#chatScreen { display: none; }
+
+.chat-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 24px;
+    min-height: 520px;
+}
+
+/* SIDEBAR */
+.sidebar {
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar h3 {
+    margin-top: 0;
+    font-size: 16px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+#currentUser {
+    font-size: 18px;
+    font-weight: 700;
+    color: #38bdf8;
+    margin-bottom: 4px;
+}
+
+.user-status {
+    color: #4ade80;
+    font-size: 12px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.logout-button {
+    margin-top: auto;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+}
+
+.logout-button:hover {
+    box-shadow: 0 12px 25px rgba(239, 68, 68, 0.45);
+}
+
+/* CHAT AREA */
+.chat-area {
+    display: flex;
+    flex-direction: column;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 20px;
+}
+
+.chat-header {
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.chat-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* CHAT BOX */
+.chat-box {
+    flex: 1;
+    min-height: 340px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 18px;
+    background: rgba(2, 6, 23, 0.4);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-box::-webkit-scrollbar {
+    width: 6px;
+}
+.chat-box::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+}
+
+.empty-message {
+    text-align: center;
+    color: #64748b;
+    margin-top: 120px;
+    font-size: 14px;
+}
+
+/* MESSAGES */
+.message {
+    margin-bottom: 16px;
+    display: flex;
+    animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message.mine { justify-content: flex-end; }
+
+.message-content {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border-bottom-left-radius: 4px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.message.mine .message-content {
+    border-radius: 18px;
+    border-bottom-right-radius: 4px;
+    background: linear-gradient(135deg, #4f46e5, #2563eb);
+    border: none;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+}
+
+.message-info {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.status-tick { font-weight: bold; }
+.status-tick.read { color: #38bdf8; }
+
+.message-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14.5px;
+    line-height: 1.5;
+}
+
+.message-action {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #93c5fd;
+    cursor: pointer;
+    display: inline-block;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+.message-action:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* PRO CONTROLS */
+.pro-options {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.pro-options select, .pro-options input[type="file"] {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 10px;
+}
+
+.typing-indicator {
+    font-size: 12px;
+    color: #38bdf8;
+    font-style: italic;
+    height: 18px;
+    margin-bottom: 4px;
+}
+
+.media-preview {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: 12px;
+    margin-top: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.download-btn {
+    display: inline-block;
+    margin-top: 8px;
+    color: #38bdf8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    background: rgba(56, 189, 248, 0.12);
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+.download-btn:hover { background: rgba(56, 189, 248, 0.25); }
+
+.message-input-area {
+    display: flex;
+    gap: 12px;
+}
+
+.message-input-area input { flex: 1; }
+
+.security-badge {
+    text-align: center;
+    margin-top: 16px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* ================= MODAL ================= */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background: rgba(2, 6, 23, 0.85);
+    backdrop-filter: blur(12px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-content {
+    width: 95%;
+    max-width: 800px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+}
+
+.modal-header h2 { margin: 0; font-size: 20px; color: #38bdf8; }
+
+.close-button {
+    background: #ef4444;
+    padding: 8px 16px;
+    box-shadow: none;
+}
+
+.crypto-section { margin-bottom: 18px; }
+.crypto-section h3 { font-size: 13px; color: #818cf8; margin-bottom: 6px; text-transform: uppercase; }
+
+.crypto-value {
+    background: rgba(2, 6, 23, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    word-break: break-all;
+    max-height: 120px;
+    overflow-y: auto;
+    color: #cbd5e1;
+}
+
+.crypto-status {
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    color: #4ade80;
+    margin-bottom: 22px;
+    font-size: 13.5px;
+}
+
+@media (max-width: 768px) {
+    .card { width: 100%; min-height: 100vh; border-radius: 0; padding: 20px; }
+    .chat-layout { grid-template-columns: 1fr; }
+    .message-content { max-width: 88%; }
+}
 </style>
 </head>
 <body>
 <div class="card">
-<h1>Secure Web Chat Pro</h1>
-<div class="subtitle">Bảo mật mã hóa End-to-End (RSA + AES + SHA)</div>
-<div id="authScreen">
-<div class="input-group"><label>Tên tài khoản</label><input id="username" type="text" placeholder="Nhập tên tài khoản"></div>
-<div class="input-group"><label>Mật khẩu</label><input id="password" type="password" placeholder="Nhập mật khẩu"></div>
-<button class="auth-button" id="authButton" onclick="handleAuth()">Đăng nhập</button>
-<div class="switch-auth"><span id="switchText">Chưa có tài khoản? Đăng ký</span></div>
-<div class="status" id="authStatus"></div>
-</div>
-<div id="chatScreen">
-<div class="chat-layout">
-<div class="sidebar">
-<h3>Tài khoản</h3>
-<div id="currentUser">-</div>
-<div class="user-status">● Đang trực tuyến</div>
-<label>Chọn người chat</label>
-<select id="receiverSelect" onchange="changeChat()"><option value="">-- Chọn người nhận --</option></select>
-<button class="logout-button" onclick="logout()">Đăng xuất</button>
-</div>
-<div class="chat-area">
-<div class="chat-header">
-<div>
-<div class="chat-title" id="chatTitle">Chưa chọn người chat</div>
-<div class="chat-subtitle" id="chatSubtitle">Chọn một người để bắt đầu chat riêng</div>
-</div>
-</div>
-<div class="chat-box" id="chatBox"><div class="empty-message">Chọn người nhận để bắt đầu.</div></div>
-<div class="typing-indicator" id="typingIndicator"></div>
+    <h1>Secure Web Chat Pro</h1>
+    <div class="subtitle">Bảo mật mã hóa End-to-End (RSA + AES + SHA)</div>
 
-<div class="pro-options">
-<div style="flex:1;">
-<select id="ttlSelect">
-<option value="0">⏳ Tự hủy: Tắt</option>
-<option value="10">⏳ Tự hủy 10s</option>
-<option value="30">⏳ Tự hủy 30s</option>
-<option value="60">⏳ Tự hủy 60s</option>
-</select>
-</div>
-<div style="flex:1;">
-<input type="file" id="fileInput">
-</div>
+    <!-- AUTH SCREEN -->
+    <div id="authScreen">
+        <div class="input-group">
+            <label>Tên tài khoản</label>
+            <input id="username" type="text" placeholder="Nhập tên tài khoản">
+        </div>
+        <div class="input-group">
+            <label>Mật khẩu</label>
+            <input id="password" type="password" placeholder="Nhập mật khẩu">
+        </div>
+        <button class="auth-button" id="authButton" onclick="handleAuth()">Đăng nhập</button>
+        <div class="switch-auth">
+            <span id="switchText">Chưa có tài khoản? Đăng ký</span>
+        </div>
+        <div class="status" id="authStatus"></div>
+    </div>
+
+    <!-- CHAT SCREEN -->
+    <div id="chatScreen">
+        <div class="chat-layout">
+            <div class="sidebar">
+                <h3>Tài khoản</h3>
+                <div id="currentUser">-</div>
+                <div class="user-status">● Đang trực tuyến</div>
+                
+                <label>Chọn người chat</label>
+                <select id="receiverSelect" onchange="changeChat()">
+                    <option value="">-- Chọn người nhận --</option>
+                </select>
+                
+                <button class="logout-button" onclick="logout()">Đăng xuất</button>
+            </div>
+
+            <div class="chat-area">
+                <div class="chat-header">
+                    <div>
+                        <div class="chat-title" id="chatTitle">Chưa chọn người chat</div>
+                        <div class="chat-subtitle" id="chatSubtitle">Chọn một người để bắt đầu chat riêng</div>
+                    </div>
+                </div>
+
+                <div class="chat-box" id="chatBox">
+                    <div class="empty-message">Chọn người nhận để bắt đầu.</div>
+                </div>
+
+                <div class="typing-indicator" id="typingIndicator"></div>
+
+                <div class="pro-options">
+                    <div style="flex:1;">
+                        <select id="ttlSelect">
+                            <option value="0">⏳ Tự hủy: Tắt</option>
+                            <option value="10">⏳ Tự hủy 10s</option>
+                            <option value="30">⏳ Tự hủy 30s</option>
+                            <option value="60">⏳ Tự hủy 60s</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <input type="file" id="fileInput">
+                    </div>
+                </div>
+
+                <div class="message-input-area">
+                    <input id="messageInput" type="text" placeholder="Nhập tin nhắn..." oninput="handleTyping()" onkeydown="handleEnter(event)">
+                    <button id="sendButton" onclick="sendMessage()">🔐 Mã Hóa & Gửi</button>
+                </div>
+
+                <div class="security-badge">RSA-2048 | AES-256-GCM | SHA-256 | File E2EE</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="message-input-area">
-<input id="messageInput" type="text" placeholder="Nhập tin nhắn..." oninput="handleTyping()" onkeydown="handleEnter(event)">
-<button id="sendButton" onclick="sendMessage()">🔐 Mã Hóa & Gửi</button>
-</div>
-<div class="security-badge">RSA-2048 | AES-256-GCM | SHA-256 | File E2EE</div>
-</div>
-</div>
-</div>
-</div>
-
+<!-- MODAL -->
 <div class="modal" id="cryptoModal" onclick="closeModalOutside(event)">
-<div class="modal-content" onclick="event.stopPropagation()">
-<div class="modal-header">
-<h2>🔐 Dữ liệu mã hóa</h2>
-<button class="close-button" onclick="closeCryptoModal()">Đóng</button>
-</div>
-<div class="crypto-status" id="cryptoStatus">Tin nhắn đã được xử lý.</div>
-<div class="crypto-section"><h3>1. Nội dung sau khi mã hóa AES-256-GCM</h3><div class="crypto-value" id="cryptoContent"></div></div>
-<div class="crypto-section"><h3>2. AES Key sau khi mã hóa bằng RSA-OAEP</h3><div class="crypto-value" id="cryptoAesKey"></div></div>
-<div class="crypto-section"><h3>3. IV - Initialization Vector</h3><div class="crypto-value" id="cryptoIv"></div></div>
-<div class="crypto-section"><h3>4. SHA-256 Hash</h3><div class="crypto-value" id="cryptoHash"></div></div>
-<div class="crypto-section"><h3>5. Người gửi</h3><div class="crypto-value" id="cryptoSender"></div></div>
-<div class="crypto-section"><h3>6. Người nhận</h3><div class="crypto-value" id="cryptoReceiver"></div></div>
-</div>
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2>🔐 Dữ liệu mã hóa</h2>
+            <button class="close-button" onclick="closeCryptoModal()">Đóng</button>
+        </div>
+        <div class="crypto-status" id="cryptoStatus">Tin nhắn đã được xử lý.</div>
+        <div class="crypto-section"><h3>1. Nội dung sau khi mã hóa AES-256-GCM</h3><div class="crypto-value" id="cryptoContent"></div></div>
+        <div class="crypto-section"><h3>2. AES Key sau khi mã hóa bằng RSA-OAEP</h3><div class="crypto-value" id="cryptoAesKey"></div></div>
+        <div class="crypto-section"><h3>3. IV - Initialization Vector</h3><div class="crypto-value" id="cryptoIv"></div></div>
+        <div class="crypto-section"><h3>4. SHA-256 Hash</h3><div class="crypto-value" id="cryptoHash"></div></div>
+        <div class="crypto-section"><h3>5. Người gửi</h3><div class="crypto-value" id="cryptoSender"></div></div>
+        <div class="crypto-section"><h3>6. Người nhận</h3><div class="crypto-value" id="cryptoReceiver"></div></div>
+    </div>
 </div>
 
 <script>
 const socket=io();let currentUsername=null,isRegisterMode=!1,rsaKeyPair=null,db=null,dbReady=!1,currentChatUser=null,typingTimeout=null;
-const dbRequest=indexedDB.open("SecureChatDB",6);
+const dbRequest=indexedDB.open("SecureChatDB",7);
 dbRequest.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains("messages")||t.createObjectStore("messages",{keyPath:"msgId"}).createIndex("chatKey","chatKey",{unique:!1}),t.objectStoreNames.contains("keys")||t.createObjectStore("keys",{keyPath:"id"})};
 dbRequest.onsuccess=e=>{db=e.target.result,dbReady=!0,console.log("IndexedDB ready.")};
 dbRequest.onerror=e=>{console.error(e.target.error),alert("Không thể mở IndexedDB!")};
@@ -100,7 +611,72 @@ async function saveKeys(){await waitForDatabase();return new Promise((e,t)=>{con
 
 document.getElementById("switchText").addEventListener("click",()=>{isRegisterMode=!isRegisterMode;const e=document.getElementById("authButton"),t=document.getElementById("switchText");isRegisterMode?(e.textContent="Đăng ký",t.textContent="Đã có tài khoản? Đăng nhập"):(e.textContent="Đăng nhập",t.textContent="Chưa có tài khoản? Đăng ký")});
 
-async function handleAuth(){const e=document.getElementById("username").value.trim(),t=document.getElementById("password").value,n=document.getElementById("authStatus");if(!e||!t)return void(n.textContent="Vui lòng nhập đầy đủ thông tin!");await waitForDatabase();try{n.textContent="Đang tạo khóa phiên...",await generateKeys();const r=await exportPublicKey(rsaKeyPair.publicKey);if(isRegisterMode){socket.emit("register_account",{username:e,password:t,publicKey:r},async t=>{if(!t.success)return void(n.textContent=t.message);await saveKeys(),n.textContent=t.message,isRegisterMode=!1,document.getElementById("authButton").textContent="Đăng nhập",document.getElementById("switchText").textContent="Chưa có tài khoản? Đăng ký"})}else{socket.emit("login_account",{username:e,password:t,publicKey:r},async t=>{if(!t.success)return void(n.textContent=t.message);await saveKeys(),currentUsername=e,document.getElementById("currentUser").textContent=e,document.getElementById("authScreen").style.display="none",document.getElementById("chatScreen").style.display="block",socket.emit("request_user_list")})}}catch(r){console.error(r),n.textContent="Lỗi: "+r.message}}
+async function handleAuth(){
+    const uInput = document.getElementById("username");
+    const pInput = document.getElementById("password");
+    const username = uInput.value.trim();
+    const password = pInput.value;
+    const status = document.getElementById("authStatus");
+
+    if (!username || !password) return void(status.textContent = "Vui lòng nhập đầy đủ thông tin!");
+    await waitForDatabase();
+
+    try {
+        status.textContent = "Đang khởi tạo khóa bảo mật...";
+        await generateKeys();
+        const r = await exportPublicKey(rsaKeyPair.publicKey);
+
+        if (isRegisterMode) {
+            socket.emit("register_account", { username, password, publicKey: r }, async t => {
+                if (!t.success) return void(status.textContent = t.message);
+                await saveKeys();
+                isRegisterMode = false;
+                document.getElementById("authButton").textContent = "Đăng nhập";
+                document.getElementById("switchText").textContent = "Chưa có tài khoản? Đăng ký";
+                uInput.value = username;
+                pInput.value = password;
+                status.textContent = "Đăng ký thành công! Đã điền thông tin, hãy bấm 'Đăng nhập'.";
+            });
+        } else {
+            socket.emit("login_account", { username, password, publicKey: r }, async t => {
+                if (!t.success) return void(status.textContent = t.message);
+                await saveKeys();
+                currentUsername = username;
+                document.getElementById("currentUser").textContent = username;
+                document.getElementById("authScreen").style.display = "none";
+                document.getElementById("chatScreen").style.display = "block";
+
+                if (t.history && t.history.length > 0) {
+                    for (const msgPacket of t.history) {
+                        try {
+                            if (msgPacket.senderUsername === currentUsername) {
+                                saveMessageLocally({ ...msgPacket, text: "[Tin nhắn cũ]" });
+                            } else {
+                                const decAes = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToArrayBuffer(msgPacket.encryptedAesKey));
+                                const aesK = await crypto.subtle.importKey("raw", decAes, { name: "AES-GCM" }, !1, ["decrypt"]);
+                                const decBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(msgPacket.iv)) }, aesK, base64ToArrayBuffer(msgPacket.encryptedContent));
+                                const payloadStr = (new TextEncoder()).decode(decBuf);
+                                const payloadObj = JSON.parse(payloadStr);
+
+                                saveMessageLocally({
+                                    ...msgPacket,
+                                    text: payloadObj.text,
+                                    fileDataB64: payloadObj.fileDataB64,
+                                    fileName: payloadObj.fileName,
+                                    fileType: payloadObj.fileType
+                                });
+                            }
+                        } catch (err) { console.log("Lỗi lịch sử:", err); }
+                    }
+                }
+                socket.emit("request_user_list");
+            });
+        }
+    } catch (r) {
+        console.error(r);
+        status.textContent = "Lỗi: " + r.message;
+    }
+}
 
 function handleTyping(){if(!currentChatUser)return;socket.emit("typing",{receiverUsername:currentChatUser,isTyping:!0}),clearTimeout(typingTimeout),typingTimeout=setTimeout(()=>{socket.emit("typing",{receiverUsername:currentChatUser,isTyping:!1})},1500)}
 socket.on("user_typing",e=>{const t=document.getElementById("typingIndicator");t.innerText=e.senderUsername===currentChatUser&&e.isTyping?`${e.senderUsername} đang gõ...`:""});
