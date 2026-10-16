@@ -7,45 +7,24 @@
 <script src="/socket.io/socket.io.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-* {
-    box-sizing: border-box;
-    transition: all 0.25s ease;
-}
+* { box-sizing: border-box; transition: all 0.25s ease; }
 
 body {
-    margin: 0;
-    min-height: 100vh;
+    margin: 0; min-height: 100vh;
     font-family: 'Plus Jakarta Sans', sans-serif;
     background: radial-gradient(circle at 15% 15%, #1e1b4b 0%, #0f172a 40%, #020617 100%);
     color: #f8fafc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     overflow-x: hidden;
 }
 
-/* Background Glowing Orbs */
 body::before, body::after {
-    content: '';
-    position: absolute;
-    width: 350px;
-    height: 350px;
-    border-radius: 50%;
-    filter: blur(100px);
-    z-index: -1;
-    opacity: 0.5;
+    content: ''; position: absolute; width: 350px; height: 350px;
+    border-radius: 50%; filter: blur(100px); z-index: -1; opacity: 0.4;
     animation: float 10s infinite alternate ease-in-out;
 }
-body::before {
-    background: #4f46e5;
-    top: 10%;
-    left: 10%;
-}
-body::after {
-    background: #06b6d4;
-    bottom: 10%;
-    right: 10%;
-}
+body::before { background: #4f46e5; top: 10%; left: 10%; }
+body::after { background: #06b6d4; bottom: 10%; right: 10%; }
 
 @keyframes float {
     0% { transform: translate(0, 0) scale(1); }
@@ -53,442 +32,135 @@ body::after {
 }
 
 .card {
-    width: 95%;
-    max-width: 1150px;
-    min-height: 680px;
+    width: 95%; max-width: 1150px; min-height: 680px;
     background: rgba(15, 23, 42, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-radius: 24px;
-    padding: 32px;
+    backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+    border-radius: 24px; padding: 32px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 h1 {
-    text-align: center;
-    margin: 0 0 6px 0;
-    font-size: 28px;
-    font-weight: 700;
+    text-align: center; margin: 0 0 6px 0;
+    font-size: 28px; font-weight: 700;
     background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 
-.subtitle {
-    text-align: center;
-    color: #94a3b8;
-    margin-bottom: 28px;
-    font-size: 14px;
-    font-weight: 500;
-}
+.subtitle { text-align: center; color: #94a3b8; margin-bottom: 28px; font-size: 14px; font-weight: 500; }
 
-/* ================= AUTH ================= */
+/* AUTH */
 #authScreen {
-    max-width: 420px;
-    margin: 40px auto;
-    padding: 30px;
-    background: rgba(30, 41, 59, 0.4);
-    border-radius: 20px;
+    max-width: 420px; margin: 40px auto; padding: 30px;
+    background: rgba(30, 41, 59, 0.4); border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
-
-.input-group {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 8px;
-    color: #cbd5e1;
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
+.input-group { margin-bottom: 20px; }
+label { display: block; margin-bottom: 8px; color: #cbd5e1; font-size: 13px; font-weight: 600; text-transform: uppercase; }
 input, select {
-    width: 100%;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(15, 23, 42, 0.6);
-    color: #fff;
-    outline: none;
-    font-size: 14px;
-    font-family: inherit;
+    width: 100%; padding: 14px 16px; border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(15, 23, 42, 0.6);
+    color: #fff; outline: none; font-size: 14px; font-family: inherit;
 }
-
-input:focus, select:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-    background: rgba(15, 23, 42, 0.8);
-}
-
-select option {
-    background: #0f172a;
-    color: #fff;
-}
+input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); }
+select option { background: #0f172a; color: #fff; }
 
 button {
-    border: none;
-    border-radius: 12px;
-    padding: 14px 20px;
-    background: linear-gradient(135deg, #4f46e5, #3b82f6);
-    color: white;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: inherit;
+    border: none; border-radius: 12px; padding: 14px 20px;
+    background: linear-gradient(135deg, #4f46e5, #3b82f6); color: white;
+    cursor: pointer; font-size: 15px; font-weight: 600; font-family: inherit;
     box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
 }
-
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 25px rgba(79, 70, 229, 0.5);
-    filter: brightness(1.1);
-}
-
-button:active {
-    transform: translateY(0);
-}
-
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
+button:hover { transform: translateY(-2px); box-shadow: 0 12px 25px rgba(79, 70, 229, 0.5); }
+button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .auth-button { width: 100%; }
+.switch-auth { text-align: center; margin-top: 22px; color: #94a3b8; font-size: 14px; }
+.switch-auth span { color: #38bdf8; cursor: pointer; font-weight: 600; }
+.status { margin-top: 18px; text-align: center; color: #a5f3fc; font-size: 13px; }
 
-.switch-auth {
-    text-align: center;
-    margin-top: 22px;
-    color: #94a3b8;
-    font-size: 14px;
-}
-
-.switch-auth span {
-    color: #38bdf8;
-    cursor: pointer;
-    font-weight: 600;
-}
-.switch-auth span:hover { text-decoration: underline; }
-
-.status {
-    margin-top: 18px;
-    text-align: center;
-    color: #a5f3fc;
-    font-size: 13px;
-}
-
-/* ================= CHAT ================= */
+/* CHAT */
 #chatScreen { display: none; }
+.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; min-height: 520px; }
 
-.chat-layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    gap: 24px;
-    min-height: 520px;
-}
-
-/* SIDEBAR */
 .sidebar {
-    background: rgba(30, 41, 59, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
+    background: rgba(30, 41, 59, 0.35); border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px; padding: 20px; display: flex; flex-direction: column;
 }
+.sidebar h3 { margin-top: 0; font-size: 15px; color: #94a3b8; text-transform: uppercase; }
+#currentUser { font-size: 18px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; }
+.user-status { color: #4ade80; font-size: 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 6px; }
+.logout-button { margin-top: auto; background: linear-gradient(135deg, #ef4444, #dc2626); }
 
-.sidebar h3 {
-    margin-top: 0;
-    font-size: 16px;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-
-#currentUser {
-    font-size: 18px;
-    font-weight: 700;
-    color: #38bdf8;
-    margin-bottom: 4px;
-}
-
-.user-status {
-    color: #4ade80;
-    font-size: 12px;
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.logout-button {
-    margin-top: auto;
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
-}
-
-.logout-button:hover {
-    box-shadow: 0 12px 25px rgba(239, 68, 68, 0.45);
-}
-
-/* CHAT AREA */
 .chat-area {
-    display: flex;
-    flex-direction: column;
-    background: rgba(15, 23, 42, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 20px;
+    display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 18px; padding: 20px;
 }
+.chat-header { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.chat-title { font-size: 20px; font-weight: 700; color: #f8fafc; }
+.chat-subtitle { font-size: 13px; color: #64748b; margin-top: 2px; }
 
-.chat-header {
-    margin-bottom: 16px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.chat-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #f8fafc;
-}
-
-.chat-subtitle {
-    font-size: 13px;
-    color: #64748b;
-    margin-top: 2px;
-}
-
-/* CHAT BOX */
 .chat-box {
-    flex: 1;
-    min-height: 340px;
-    max-height: 380px;
-    overflow-y: auto;
-    padding: 18px;
-    background: rgba(2, 6, 23, 0.4);
-    border-radius: 14px;
-    margin-bottom: 12px;
+    flex: 1; min-height: 340px; max-height: 380px; overflow-y: auto; padding: 18px;
+    background: rgba(2, 6, 23, 0.4); border-radius: 14px; margin-bottom: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
+.empty-message { text-align: center; color: #64748b; margin-top: 120px; font-size: 14px; }
 
-.chat-box::-webkit-scrollbar {
-    width: 6px;
-}
-.chat-box::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-}
-
-.empty-message {
-    text-align: center;
-    color: #64748b;
-    margin-top: 120px;
-    font-size: 14px;
-}
-
-/* MESSAGES */
-.message {
-    margin-bottom: 16px;
-    display: flex;
-    animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
+.message { margin-bottom: 16px; display: flex; }
 .message.mine { justify-content: flex-end; }
-
 .message-content {
-    max-width: 75%;
-    padding: 12px 16px;
-    border-radius: 18px;
-    border-bottom-left-radius: 4px;
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    max-width: 75%; padding: 12px 16px; border-radius: 18px; border-bottom-left-radius: 4px;
+    background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.08);
 }
-
 .message.mine .message-content {
-    border-radius: 18px;
-    border-bottom-right-radius: 4px;
-    background: linear-gradient(135deg, #4f46e5, #2563eb);
-    border: none;
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+    border-radius: 18px; border-bottom-right-radius: 4px;
+    background: linear-gradient(135deg, #4f46e5, #2563eb); border: none;
 }
-
-.message-info {
-    font-size: 11px;
-    opacity: 0.8;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.status-tick { font-weight: bold; }
+.message-info { font-size: 11px; opacity: 0.8; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 12px; }
 .status-tick.read { color: #38bdf8; }
+.message-text { white-space: pre-wrap; word-break: break-word; font-size: 14.5px; line-height: 1.5; }
+.message-action { margin-top: 8px; font-size: 11px; color: #93c5fd; cursor: pointer; display: inline-block; padding: 3px 8px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; }
 
-.message-text {
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 14.5px;
-    line-height: 1.5;
+/* UI PRO CONTROLS MỚI */
+.pro-controls {
+    display: flex; gap: 10px; align-items: center; margin-bottom: 12px; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.08);
 }
+.ttl-picker { width: 160px; padding: 8px 12px; font-size: 13px; }
+.custom-file-btn {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500;
+}
+.custom-file-btn:hover { background: rgba(255, 255, 255, 0.15); }
+#fileNameDisplay { font-size: 12px; color: #38bdf8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.message-action {
-    margin-top: 10px;
-    font-size: 11px;
-    color: #93c5fd;
-    cursor: pointer;
-    display: inline-block;
-    padding: 3px 8px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
-}
-.message-action:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
+.typing-indicator { font-size: 12px; color: #38bdf8; font-style: italic; height: 18px; margin-bottom: 4px; }
+.media-preview { max-width: 100%; max-height: 180px; border-radius: 12px; margin-top: 8px; }
+.download-btn { display: inline-block; margin-top: 8px; color: #38bdf8; font-size: 13px; font-weight: 600; padding: 6px 12px; background: rgba(56, 189, 248, 0.12); border-radius: 8px; }
 
-/* PRO CONTROLS */
-.pro-options {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.pro-options select, .pro-options input[type="file"] {
-    padding: 10px 14px;
-    font-size: 13px;
-    border-radius: 10px;
-}
-
-.typing-indicator {
-    font-size: 12px;
-    color: #38bdf8;
-    font-style: italic;
-    height: 18px;
-    margin-bottom: 4px;
-}
-
-.media-preview {
-    max-width: 100%;
-    max-height: 180px;
-    border-radius: 12px;
-    margin-top: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.download-btn {
-    display: inline-block;
-    margin-top: 8px;
-    color: #38bdf8;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 6px 12px;
-    background: rgba(56, 189, 248, 0.12);
-    border-radius: 8px;
-    border: 1px solid rgba(56, 189, 248, 0.2);
-}
-.download-btn:hover { background: rgba(56, 189, 248, 0.25); }
-
-.message-input-area {
-    display: flex;
-    gap: 12px;
-}
-
+.message-input-area { display: flex; gap: 12px; }
 .message-input-area input { flex: 1; }
 
 .security-badge {
-    text-align: center;
-    margin-top: 16px;
-    padding: 10px;
-    border-radius: 10px;
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    color: #4ade80;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    text-align: center; margin-top: 16px; padding: 10px; border-radius: 10px;
+    background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #4ade80; font-size: 12px; font-weight: 600;
 }
 
-/* ================= MODAL ================= */
+/* MODAL */
 .modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background: rgba(2, 6, 23, 0.85);
-    backdrop-filter: blur(12px);
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+    display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+    background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px;
 }
-
 .modal-content {
-    width: 95%;
-    max-width: 800px;
-    max-height: 85vh;
-    overflow-y: auto;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 20px;
-    padding: 28px;
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+    width: 95%; max-width: 800px; max-height: 85vh; overflow-y: auto; background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 28px;
 }
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 22px;
-}
-
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
 .modal-header h2 { margin: 0; font-size: 20px; color: #38bdf8; }
-
-.close-button {
-    background: #ef4444;
-    padding: 8px 16px;
-    box-shadow: none;
-}
-
+.close-button { background: #ef4444; padding: 8px 16px; }
 .crypto-section { margin-bottom: 18px; }
 .crypto-section h3 { font-size: 13px; color: #818cf8; margin-bottom: 6px; text-transform: uppercase; }
-
-.crypto-value {
-    background: rgba(2, 6, 23, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 12px;
-    font-family: 'Consolas', monospace;
-    font-size: 12px;
-    word-break: break-all;
-    max-height: 120px;
-    overflow-y: auto;
-    color: #cbd5e1;
-}
-
-.crypto-status {
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: rgba(34, 197, 94, 0.12);
-    border: 1px solid rgba(34, 197, 94, 0.25);
-    color: #4ade80;
-    margin-bottom: 22px;
-    font-size: 13.5px;
-}
+.crypto-value { background: rgba(2, 6, 23, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px; font-family: 'Consolas', monospace; font-size: 12px; word-break: break-all; max-height: 120px; overflow-y: auto; color: #cbd5e1; }
+.crypto-status { padding: 12px 16px; border-radius: 10px; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.25); color: #4ade80; margin-bottom: 22px; font-size: 13.5px; }
 
 @media (max-width: 768px) {
     .card { width: 100%; min-height: 100vh; border-radius: 0; padding: 20px; }
@@ -549,18 +221,20 @@ button:disabled {
 
                 <div class="typing-indicator" id="typingIndicator"></div>
 
-                <div class="pro-options">
-                    <div style="flex:1;">
-                        <select id="ttlSelect">
-                            <option value="0">⏳ Tự hủy: Tắt</option>
-                            <option value="10">⏳ Tự hủy 10s</option>
-                            <option value="30">⏳ Tự hủy 30s</option>
-                            <option value="60">⏳ Tự hủy 60s</option>
-                        </select>
-                    </div>
-                    <div style="flex:1;">
-                        <input type="file" id="fileInput">
-                    </div>
+                <!-- THANH TÙY CHỌN TỆP & TỰ HỦY GỌN ĐẸP -->
+                <div class="pro-controls">
+                    <select id="ttlSelect" class="ttl-picker">
+                        <option value="0">⏳ Tự hủy: Tắt</option>
+                        <option value="10">🔥 Tự hủy 10s</option>
+                        <option value="30">🔥 Tự hủy 30s</option>
+                        <option value="60">🔥 Tự hủy 60s</option>
+                    </select>
+
+                    <label for="fileInput" class="custom-file-btn">
+                        📎 Đính kèm tệp
+                    </label>
+                    <input type="file" id="fileInput" style="display:none;" onchange="updateFileName(this)">
+                    <span id="fileNameDisplay"></span>
                 </div>
 
                 <div class="message-input-area">
@@ -593,7 +267,7 @@ button:disabled {
 
 <script>
 const socket=io();let currentUsername=null,isRegisterMode=!1,rsaKeyPair=null,db=null,dbReady=!1,currentChatUser=null,typingTimeout=null;
-const dbRequest=indexedDB.open("SecureChatDB",7);
+const dbRequest=indexedDB.open("SecureChatDB",8);
 dbRequest.onupgradeneeded=e=>{const t=e.target.result;t.objectStoreNames.contains("messages")||t.createObjectStore("messages",{keyPath:"msgId"}).createIndex("chatKey","chatKey",{unique:!1}),t.objectStoreNames.contains("keys")||t.createObjectStore("keys",{keyPath:"id"})};
 dbRequest.onsuccess=e=>{db=e.target.result,dbReady=!0,console.log("IndexedDB ready.")};
 dbRequest.onerror=e=>{console.error(e.target.error),alert("Không thể mở IndexedDB!")};
@@ -609,6 +283,11 @@ async function exportPublicKey(e){return arrayBufferToBase64(await crypto.subtle
 
 async function saveKeys(){await waitForDatabase();return new Promise((e,t)=>{const n=db.transaction(["keys"],"readwrite");n.objectStore("keys").put({id:"myKeys",rsaPublicKey:rsaKeyPair.publicKey,rsaPrivateKey:rsaKeyPair.privateKey}),n.oncomplete=()=>e(),n.onerror=()=>t(n.error)})}
 
+function updateFileName(input) {
+    const display = document.getElementById("fileNameDisplay");
+    display.textContent = input.files[0] ? `✓ ${input.files[0].name}` : "";
+}
+
 document.getElementById("switchText").addEventListener("click",()=>{isRegisterMode=!isRegisterMode;const e=document.getElementById("authButton"),t=document.getElementById("switchText");isRegisterMode?(e.textContent="Đăng ký",t.textContent="Đã có tài khoản? Đăng nhập"):(e.textContent="Đăng nhập",t.textContent="Chưa có tài khoản? Đăng ký")});
 
 async function handleAuth(){
@@ -622,7 +301,7 @@ async function handleAuth(){
     await waitForDatabase();
 
     try {
-        status.textContent = "Đang khởi tạo khóa bảo mật...";
+        status.textContent = "Đang khởi tạo khóa...";
         await generateKeys();
         const r = await exportPublicKey(rsaKeyPair.publicKey);
 
@@ -633,9 +312,8 @@ async function handleAuth(){
                 isRegisterMode = false;
                 document.getElementById("authButton").textContent = "Đăng nhập";
                 document.getElementById("switchText").textContent = "Chưa có tài khoản? Đăng ký";
-                uInput.value = username;
-                pInput.value = password;
-                status.textContent = "Đăng ký thành công! Đã điền thông tin, hãy bấm 'Đăng nhập'.";
+                uInput.value = username; pInput.value = password;
+                status.textContent = "Đăng ký thành công! Hãy bấm 'Đăng nhập'.";
             });
         } else {
             socket.emit("login_account", { username, password, publicKey: r }, async t => {
@@ -646,12 +324,12 @@ async function handleAuth(){
                 document.getElementById("authScreen").style.display = "none";
                 document.getElementById("chatScreen").style.display = "block";
 
+                // ĐỒNG BỘ LỊCH SỬ THÔNG MINH - SỬA LỖI [TIN NHẮN CŨ]
                 if (t.history && t.history.length > 0) {
                     for (const msgPacket of t.history) {
                         try {
-                            if (msgPacket.senderUsername === currentUsername) {
-                                saveMessageLocally({ ...msgPacket, text: "[Tin nhắn cũ]" });
-                            } else {
+                            if (msgPacket.senderUsername !== currentUsername) {
+                                // Giải mã tin nhắn từ đối phương
                                 const decAes = await crypto.subtle.decrypt({ name: "RSA-OAEP" }, rsaKeyPair.privateKey, base64ToArrayBuffer(msgPacket.encryptedAesKey));
                                 const aesK = await crypto.subtle.importKey("raw", decAes, { name: "AES-GCM" }, !1, ["decrypt"]);
                                 const decBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv: new Uint8Array(base64ToArrayBuffer(msgPacket.iv)) }, aesK, base64ToArrayBuffer(msgPacket.encryptedContent));
@@ -666,7 +344,7 @@ async function handleAuth(){
                                     fileType: payloadObj.fileType
                                 });
                             }
-                        } catch (err) { console.log("Lỗi lịch sử:", err); }
+                        } catch (err) { console.log("Skip decrypt history:", err); }
                     }
                 }
                 socket.emit("request_user_list");
@@ -691,13 +369,15 @@ function removeFromDatabase(e){if(!dbReady)return;db.transaction(["messages"],"r
 
 async function loadPrivateChat(e){await waitForDatabase();const t=createChatKey(currentUsername,e),n=db.transaction(["messages"],"readonly").objectStore("messages").index("chatKey").getAll(t);n.onsuccess=function(){const t=n.result;t.sort((e,t)=>e.timestamp-t.timestamp);const r=document.getElementById("chatBox");if(r.innerHTML="",0===t.length){const t=document.createElement("div");return t.className="empty-message",t.textContent="Chưa có tin nhắn với "+e+".",void r.appendChild(t)}t.forEach(e=>{renderMessageToUI(e)})}}
 
-async function sendMessage(){if(!currentUsername)return;if(!currentChatUser)return void alert("Hãy chọn người muốn chat!");const e=document.getElementById("messageInput"),t=e.value.trim(),n=document.getElementById("fileInput"),r=n.files[0],s=parseInt(document.getElementById("ttlSelect").value);if(!t&&!r)return;const o=document.getElementById("sendButton");o.disabled=!0;try{socket.emit("get_public_key",currentChatUser,async a=>{if(!a.success)return alert(a.message),void(o.disabled=!1);try{let c=null,i=null,u=null;if(r){const e=await r.arrayBuffer();c=arrayBufferToBase64(e),i=r.name,u=r.type}const l={text:t,fileDataB64:c,fileName:i,fileType:u,ttl:s},payloadText=JSON.stringify(l),d=(new TextEncoder).encode(payloadText),m=await sha256Hex(d),y="msg_"+Date.now()+"_"+Math.random().toString(36).substr(2,5),g=await crypto.subtle.importKey("spki",base64ToArrayBuffer(a.publicKey),{name:"RSA-OAEP",hash:"SHA-256"},!1,["encrypt"]),h=await crypto.subtle.generateKey({name:"AES-GCM",length:256},!0,["encrypt","decrypt"]),f=crypto.getRandomValues(new Uint8Array(12)),k=await crypto.subtle.encrypt({name:"AES-GCM",iv:f},h,d),v=await crypto.subtle.exportKey("raw",h),M=await crypto.subtle.encrypt({name:"RSA-OAEP"},g,v),S={msgId:y,senderUsername:currentUsername,receiverUsername:currentChatUser,encryptedContent:arrayBufferToBase64(k),encryptedAesKey:arrayBufferToBase64(M),iv:arrayBufferToBase64(f.buffer),timestamp:Date.now(),hash:m,ttl:s};socket.emit("send_secure_message",S);const B={...S,text:t,fileDataB64:c,fileName:i,fileType:u,status:"sent"};saveMessageLocally(B),renderMessageToUI(B),e.value="",n.value=""}catch(c){console.error(c),alert("Không thể mã hóa tin nhắn!")}finally{o.disabled=!1}})}catch(a){console.error(a),o.disabled=!1}}
+async function sendMessage(){if(!currentUsername)return;if(!currentChatUser)return void alert("Hãy chọn người muốn chat!");const e=document.getElementById("messageInput"),t=e.value.trim(),n=document.getElementById("fileInput"),r=n.files[0],s=parseInt(document.getElementById("ttlSelect").value);if(!t&&!r)return;const o=document.getElementById("sendButton");o.disabled=!0;try{socket.emit("get_public_key",currentChatUser,async a=>{if(!a.success)return alert(a.message),void(o.disabled=!1);try{let c=null,i=null,u=null;if(r){const e=await r.arrayBuffer();c=arrayBufferToBase64(e),i=r.name,u=r.type}const l={text:t,fileDataB64:c,fileName:i,fileType:u,ttl:s},payloadText=JSON.stringify(l),d=(new TextEncoder).encode(payloadText),m=await sha256Hex(d),y="msg_"+Date.now()+"_"+Math.random().toString(36).substr(2,5),g=await crypto.subtle.importKey("spki",base64ToArrayBuffer(a.publicKey),{name:"RSA-OAEP",hash:"SHA-256"},!1,["encrypt"]),h=await crypto.subtle.generateKey({name:"AES-GCM",length:256},!0,["encrypt","decrypt"]),f=crypto.getRandomValues(new Uint8Array(12)),k=await crypto.subtle.encrypt({name:"AES-GCM",iv:f},h,d),v=await crypto.subtle.exportKey("raw",h),M=await crypto.subtle.encrypt({name:"RSA-OAEP"},g,v),S={msgId:y,senderUsername:currentUsername,receiverUsername:currentChatUser,encryptedContent:arrayBufferToBase64(k),encryptedAesKey:arrayBufferToBase64(M),iv:arrayBufferToBase64(f.buffer),timestamp:Date.now(),hash:m,ttl:s};socket.emit("send_secure_message",S);
+// LƯU TRỰC TIẾP PLAINTEXT VÀO INDEXEDDB CỦA NGUỜI GỬI DỂ KHÔNG BỊ LỖI TIN NHẮN CỦ
+const B={...S,text:t,fileDataB64:c,fileName:i,fileType:u,status:"sent"};saveMessageLocally(B),renderMessageToUI(B),e.value="",n.value="",document.getElementById("fileNameDisplay").textContent=""}catch(c){console.error(c),alert("Không thể mã hóa tin nhắn!")}finally{o.disabled=!1}})}catch(a){console.error(a),o.disabled=!1}}
 
 socket.on("receive_secure_message",async e=>{try{const t=await crypto.subtle.decrypt({name:"RSA-OAEP"},rsaKeyPair.privateKey,base64ToArrayBuffer(e.encryptedAesKey)),n=await crypto.subtle.importKey("raw",t,{name:"AES-GCM"},!1,["decrypt"]),r=await crypto.subtle.decrypt({name:"AES-GCM",iv:new Uint8Array(base64ToArrayBuffer(e.iv))},n,base64ToArrayBuffer(e.encryptedContent)),s=(new TextDecoder).decode(r),o=JSON.parse(s);const u={msgId:e.msgId,senderUsername:e.senderUsername,receiverUsername:e.receiverUsername,text:o.text,fileDataB64:o.fileDataB64,fileName:o.fileName,fileType:o.fileType,timestamp:e.timestamp,encryptedContent:e.encryptedContent,encryptedAesKey:e.encryptedAesKey,iv:e.iv,hash:e.hash,ttl:e.ttl};saveMessageLocally(u),socket.emit("mark_as_read",{msgId:e.msgId,senderUsername:e.senderUsername}),currentChatUser===e.senderUsername&&renderMessageToUI(u),e.ttl>0&&setTimeout(()=>{const t=document.getElementById(e.msgId);t&&t.remove(),removeFromDatabase(e.msgId)},1000*e.ttl)}catch(t){console.error("Decrypt error:",t),renderWarning("⚠️ Không thể giải mã tin nhắn.")}});
 
 socket.on("message_status_update",e=>{const t=document.getElementById(`tick_${e.msgId}`);t&&("received"===e.status?t.innerText="✓✓":"read"===e.status&&(t.innerText="✓✓",t.classList.add("read")))});
 
-function renderMessageToUI(e){const t=e.senderUsername===currentUsername?e.receiverUsername:e.senderUsername;if(currentChatUser&&t!==currentChatUser)return;const n=document.getElementById("chatBox"),r=n.querySelector(".empty-message");r&&r.remove();const s=document.createElement("div"),o=e.senderUsername===currentUsername;s.className="message"+(o?" mine":""),s.id=e.msgId;const a=document.createElement("div");a.className="message-content";const c=document.createElement("div");c.className="message-info";const i=new Date(e.timestamp),u=o?`<span id="tick_${e.msgId}" class="status-tick ${"read"===e.status?"read":""}">${"sent"===e.status?"✓":"✓✓"}</span>`:"";c.innerHTML=`<span>${e.senderUsername} • ${i.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}${e.ttl>0?` ⏳(${e.ttl}s)`:""}</span>${u}`;const l=document.createElement("div");l.className="message-text";let d=`<div>${e.text||""}</div>`;e.fileDataB64&&(d+=e.fileType&&e.fileType.startsWith("image/")?`<br><img src="data:${e.fileType};base64,${e.fileDataB64}" class="media-preview"/>`:`<br><a href="data:${e.fileType};base64,${e.fileDataB64}" download="${e.fileName}" class="download-btn">📎 Tải về: ${e.fileName}</a>`),l.innerHTML=d;const m=document.createElement("div");m.className="message-action",m.textContent="🔐 Xem dữ liệu mã hóa",m.onclick=()=>{showEncryptionData(e)},a.appendChild(c),a.appendChild(l),a.appendChild(m),s.appendChild(a),n.appendChild(s),n.scrollTop=n.scrollHeight}
+function renderMessageToUI(e){const t=e.senderUsername===currentUsername?e.receiverUsername:e.senderUsername;if(currentChatUser&&t!==currentChatUser)return;const n=document.getElementById("chatBox"),r=n.querySelector(".empty-message");r&&r.remove();const s=document.createElement("div"),o=e.senderUsername===currentUsername;s.className="message"+(o?" mine":""),s.id=e.msgId;const a=document.createElement("div");a.className="message-content";const c=document.createElement("div");c.className="message-info";const i=new Date(e.timestamp),u=o?`<span id="tick_${e.msgId}" class="status-tick ${"read"===e.status?"read":""}">${"sent"===e.status?"✓":"✓✓"}</span>`:"";c.innerHTML=`<span>${e.senderUsername} • ${i.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"})}${e.ttl>0?` 🔥(${e.ttl}s)`:""}</span>${u}`;const l=document.createElement("div");l.className="message-text";let d=`<div>${e.text||""}</div>`;e.fileDataB64&&(d+=e.fileType&&e.fileType.startsWith("image/")?`<br><img src="data:${e.fileType};base64,${e.fileDataB64}" class="media-preview"/>`:`<br><a href="data:${e.fileType};base64,${e.fileDataB64}" download="${e.fileName}" class="download-btn">📎 Tải về: ${e.fileName}</a>`),l.innerHTML=d;const m=document.createElement("div");m.className="message-action",m.textContent="🔐 Xem dữ liệu mã hóa",m.onclick=()=>{showEncryptionData(e)},a.appendChild(c),a.appendChild(l),a.appendChild(m),s.appendChild(a),n.appendChild(s),n.scrollTop=n.scrollHeight}
 
 function showEncryptionData(e){document.getElementById("cryptoContent").textContent=e.encryptedContent||"Không có dữ liệu",document.getElementById("cryptoAesKey").textContent=e.encryptedAesKey||"Không có dữ liệu",document.getElementById("cryptoIv").textContent=e.iv||"Không có dữ liệu",document.getElementById("cryptoHash").textContent=e.hash||"Không có dữ liệu",document.getElementById("cryptoSender").textContent=e.senderUsername||"Không có dữ liệu",document.getElementById("cryptoReceiver").textContent=e.receiverUsername||"Không có dữ liệu",document.getElementById("cryptoStatus").textContent="✓ Tin nhắn đã được mã hóa AES-256-GCM, AES Key được bảo vệ bằng RSA-OAEP và nội dung được kiểm tra bằng SHA-256.",document.getElementById("cryptoModal").style.display="flex"}
 
